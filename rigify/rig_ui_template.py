@@ -218,7 +218,7 @@ def correct_rotation(view_layer, bone_ik, target_matrix, *, ctrl_ik=None):
     start_angle = ctrl_ik.rotation_euler[1]
 
     alfarange = find_min_range(distance, start_angle)
-    alfamin = ternarySearch(distance, alfarange[0], alfarange[1], pi / 180)
+    alfamin = ternarySearch(distance, alfarange[0], -alfarange[1], pi / 180)
 
     ctrl_ik.rotation_euler[1] = alfamin
     view_layer.update()

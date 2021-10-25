@@ -949,8 +949,8 @@ class RigifyLimbIk2FkBase:
         if use_pole:
             match_pole_target(
                 context.view_layer,
-                ik_bones[0], ik_bones[1], ctrl_bones[1], matrices[0],
-                (ik_bones[0].length + ik_bones[1].length)
+                ik_bones[0], ik_bones[-1], ctrl_bones[1], matrices[0],
+                (ik_bones[0].length + ik_bones[-1].length)
             )
 
         else:
@@ -1091,7 +1091,7 @@ class RigifyLimbTogglePoleBase(RigifyLimbIk2FkBase):
         if self.keyflags is not None:
             if self.use_pole:
                 keyframe_transform_properties(
-                    obj, self.ctrl_bone_list[2], self.keyflags,
+                    obj, self.ctrl_bone_list[1], self.keyflags,
                     no_rot=True, no_scale=True,
                 )
             else:
@@ -1117,7 +1117,7 @@ class POSE_OT_rigify_limb_toggle_pole_bake(RigifyLimbTogglePoleBase, RigifyBakeK
         self.bake_add_bone_frames(self.ctrl_bone_list, TRANSFORM_PROPS_ALL)
 
         rot_curves = self.bake_get_all_bone_curves(self.ctrl_bone_list[0], TRANSFORM_PROPS_ROTATION)
-        pole_curves = self.bake_get_all_bone_curves(self.ctrl_bone_list[2], TRANSFORM_PROPS_LOCATION)
+        pole_curves = self.bake_get_all_bone_curves(self.ctrl_bone_list[1], TRANSFORM_PROPS_LOCATION)        
         return rot_curves + pole_curves
 
     def execute_before_apply(self, context, obj, range, range_raw):
