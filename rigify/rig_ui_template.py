@@ -82,7 +82,7 @@ def find_min_range(f,start_angle,delta=pi/8):
     """ finds the range where lies the minimum of function f applied on bone_ik and bone_fk
         at a certain angle.
     """
-    angle = start_angle
+    angle = start_angle - 2*pi + delta;
     while (angle > (start_angle - 2*pi)) and (angle < (start_angle + 2*pi)):
         l_dist = f(angle-delta)
         c_dist = f(angle)
@@ -218,7 +218,7 @@ def correct_rotation(view_layer, bone_ik, target_matrix, *, ctrl_ik=None):
     start_angle = ctrl_ik.rotation_euler[1]
 
     alfarange = find_min_range(distance, start_angle)
-    alfamin = ternarySearch(distance, alfarange[0], -alfarange[1], pi / 180)
+    alfamin = ternarySearch(distance, alfarange[0], alfarange[1], pi / 180)
 
     ctrl_ik.rotation_euler[1] = alfamin
     view_layer.update()
