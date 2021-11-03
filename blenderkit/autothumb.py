@@ -68,7 +68,7 @@ def get_texture_ui(tpath, iname):
 
 def check_thumbnail(props, imgpath):
     img = utils.get_hidden_image(imgpath, 'upload_preview', force_reload=True)
-    print(' check thumbnail ', img)
+    # print(' check thumbnail ', img)
     if img is not None:  # and img.size[0] == img.size[1] and img.size[0] >= 512 and (
         # img.file_format == 'JPEG' or img.file_format == 'PNG'):
         props.has_thumbnail = True
@@ -283,7 +283,10 @@ class GenerateThumbnailOperator(bpy.types.Operator):
         bkit.thumbnail = rel_thumb_path + '.jpg'
         bkit.thumbnail_generating_state = 'Saving .blend file'
 
+        # if this isn't here, blender crashes.
+        bpy.context.preferences.filepaths.file_preview_type = 'NONE'
         # save a copy of actual scene but don't interfere with the users models
+
         bpy.ops.wm.save_as_mainfile(filepath=filepath, compress=False, copy=True)
         # get all included objects
         obs = utils.get_hierarchy(asset)
@@ -330,7 +333,7 @@ class GenerateThumbnailOperator(bpy.types.Operator):
 class ReGenerateThumbnailOperator(bpy.types.Operator):
     """
         Generate default thumbnail with Cycles renderer and upload it.
-        Works also for assets from search results, without being downloaded before.
+        Works also for assets from search results, without being downloaded before
     """
     bl_idname = "object.blenderkit_regenerate_thumbnail"
     bl_label = "BlenderKit Thumbnail Re-generate"
@@ -440,7 +443,7 @@ class ReGenerateThumbnailOperator(bpy.types.Operator):
 
 
 class GenerateMaterialThumbnailOperator(bpy.types.Operator):
-    """Generate default thumbnail with Cycles renderer."""
+    """Generate default thumbnail with Cycles renderer"""
     bl_idname = "object.blenderkit_generate_material_thumbnail"
     bl_label = "BlenderKit Material Thumbnail Generator"
     bl_options = {'REGISTER', 'INTERNAL'}
@@ -471,6 +474,9 @@ class GenerateMaterialThumbnailOperator(bpy.types.Operator):
         asset = bpy.context.active_object.active_material
         tempdir = tempfile.mkdtemp()
         filepath = os.path.join(tempdir, "material_thumbnailer_cycles.blend")
+        # if this isn't here, blender crashes.
+        bpy.context.preferences.filepaths.file_preview_type = 'NONE'
+
         # save a copy of actual scene but don't interfere with the users models
         bpy.ops.wm.save_as_mainfile(filepath=filepath, compress=False, copy=True)
 
@@ -634,7 +640,7 @@ class ReGenerateMaterialThumbnailOperator(bpy.types.Operator):
 
     def invoke(self, context, event):
         # scene = bpy.context.scene
-        # ui_props = scene.blenderkitUI
+        # ui_props = bpy.context.window_manager.blenderkitUI
         # if ui_props.active_index > -1:
         #     sr = bpy.context.window_manager['search results']
         #     self.asset_data = dict(sr[ui_props.active_index])

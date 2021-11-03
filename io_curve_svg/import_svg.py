@@ -83,10 +83,7 @@ def SVGParseCoord(coord, size):
 
     if unit == '%':
         return float(size) / 100.0 * val
-    else:
-        return val * units[unit]
-
-    return val
+    return val * units[unit]
 
 
 def SVGRectFromNode(node, context):
@@ -1389,6 +1386,8 @@ class SVGGeometryRECT(SVGGeometry):
         # Geometry creation
         ob = SVGCreateCurve(self._context)
         cu = ob.data
+
+        id_names_from_node(self._node, ob)
 
         if self._styles['useFill']:
             cu.dimensions = '2D'

@@ -89,6 +89,11 @@ class GreasePencilAddonPrefs(bpy.types.AddonPreferences):
         name = "Use Hud",
         description = "Display angle lines and angle value as text on viewport",
         default = False)
+    
+    canvas_use_view_center: BoolProperty(
+        name = "Rotate From View Center In Camera",
+        description = "Rotate from view center in camera view, Else rotate from camera center",
+        default = True)
 
     ## Canvas rotate
     canvas_use_shortcut: BoolProperty(
@@ -197,6 +202,7 @@ class GreasePencilAddonPrefs(bpy.types.AddonPreferences):
             else:
                 box.label(text="No hotkey has been set automatically. Following operators needs to be set manually:", icon="ERROR")
                 box.label(text="view3d.rotate_canvas")
+            box.prop(self, 'canvas_use_view_center')
             box.prop(self, 'canvas_use_hud')
 
             ## SCRUB TIMELINE
@@ -224,6 +230,7 @@ class GPT_MT_box_deform_doc(bpy.types.Menu):
         col.separator()
         col.label(text="Shortcuts:", icon='HAND')
         col.label(text="Spacebar / Enter : Confirm")
+        col.label(text="Shift + Spacebar / Enter : Confirm and let the lattice in place")
         col.label(text="Delete / Backspace / Tab(twice) / Ctrl+T : Cancel")
         col.label(text="M : Toggle between Linear and Spline mode at any moment")
         col.label(text="1-9 top row number : Subdivide the box")

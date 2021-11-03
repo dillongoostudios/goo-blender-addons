@@ -31,6 +31,9 @@ icons_read = {
     'dumbbell.png': 'dumbbell',
     'cc0.png': 'cc0',
     'royalty_free.png': 'royalty_free',
+    'filter.png': 'filter',
+    'filter_active.png': 'filter_active',
+    'bell.png': 'bell',
 }
 
 verification_icons = {

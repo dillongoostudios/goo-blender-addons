@@ -177,7 +177,9 @@ def pVisScaExec(bone, active, context):
 def pDrwExec(bone, active, context):
     bone.custom_shape = active.custom_shape
     bone.use_custom_shape_bone_size = active.use_custom_shape_bone_size
-    bone.custom_shape_scale = active.custom_shape_scale
+    bone.custom_shape_translation = active.custom_shape_translation
+    bone.custom_shape_rotation_euler = active.custom_shape_rotation_euler
+    bone.custom_shape_scale_xyz = active.custom_shape_scale_xyz
     bone.bone.show_wire = active.bone.show_wire
 
 
@@ -573,11 +575,7 @@ class CopySelectedObjectConstraints(Operator):
         for obj in selected:
             for index, flag in enumerate(self.selection):
                 if flag:
-                    old_constraint = active.constraints[index]
-                    new_constraint = obj.constraints.new(
-                        active.constraints[index].type
-                    )
-                    generic_copy(old_constraint, new_constraint)
+                    obj.constraints.copy(active.constraints[index])
         return{'FINISHED'}
 
 

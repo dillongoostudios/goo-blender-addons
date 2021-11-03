@@ -33,123 +33,141 @@ from bpy.props import (
     EnumProperty,
 )
 
+# Todo:
+# *update this file to just cover 2.79 to  3.xx and ui it from a Blender internal to pov menu
+# *as well as update from older pov > switch to QMC when pov 3.8 is out ?
+# *filter if possible  files built in pre 2.79 versions. tell user their file is too old and may
+# be salvaged from older vesion of this operator from within latest stable blender 2.79 version.
+# else if bpy.app.version[0] == 2 and bpy.app.version[1] <= 92 and and bpy.app.version[1] >= 79:
+# warn users to update blender to 3.xx for creating their newer files then try to salvage
+# using this script
+#
+# if bpy.app.version[0] >= 3:  # just test file created a)there or b)before, a) do nothing
+# "your version is relatively futureproof" > doing nothing
+# b)"use this operator to salvage your blends from latest stable 2.79"
+
 
 def update2_0_0_9():
+    """Update properties from older Blender versions. The render API changed a lot up to  2.79."""
     # Temporally register old props, so we can access their values.
     register()
 
     # Mapping old names -> old default values
     # XXX We could also store the new name, but as it is just the same without leading pov_ ...
     # Get default values of pov scene props.
-    old_sce_props = {}
-    for k in [
-        "pov_tempfiles_enable",
-        "pov_deletefiles_enable",
-        "pov_scene_name",
-        "pov_scene_path",
-        "pov_renderimage_path",
-        "pov_list_lf_enable",
-        "pov_radio_enable",
-        "pov_radio_display_advanced",
-        "pov_media_enable",
-        "pov_media_samples",
-        "pov_media_color",
-        "pov_baking_enable",
-        "pov_indentation_character",
-        "pov_indentation_spaces",
-        "pov_comments_enable",
-        "pov_command_line_switches",
-        "pov_antialias_enable",
-        "pov_antialias_method",
-        "pov_antialias_depth",
-        "pov_antialias_threshold",
-        "pov_jitter_enable",
-        "pov_jitter_amount",
-        "pov_antialias_gamma",
-        "pov_max_trace_level",
-        "pov_photon_spacing",
-        "pov_photon_max_trace_level",
-        "pov_photon_adc_bailout",
-        "pov_photon_gather_min",
-        "pov_photon_gather_max",
-        "pov_radio_adc_bailout",
-        "pov_radio_always_sample",
-        "pov_radio_brightness",
-        "pov_radio_count",
-        "pov_radio_error_bound",
-        "pov_radio_gray_threshold",
-        "pov_radio_low_error_factor",
-        "pov_radio_media",
-        "pov_radio_minimum_reuse",
-        "pov_radio_nearest_count",
-        "pov_radio_normal",
-        "pov_radio_recursion_limit",
-        "pov_radio_pretrace_start",
-        "pov_radio_pretrace_end",
-    ]:
-        old_sce_props[k] = getattr(bpy.types.Scene, k)[1].get('default', None)
+    old_sce_props = {
+        k: getattr(bpy.types.Scene, k)[1].get('default', None)
+        for k in [
+            "pov_tempfiles_enable",
+            "pov_deletefiles_enable",
+            "pov_scene_name",
+            "pov_scene_path",
+            "pov_renderimage_path",
+            "pov_list_lf_enable",
+            "pov_radio_enable",
+            "pov_radio_display_advanced",
+            "pov_media_enable",
+            "pov_media_samples",
+            "pov_media_color",
+            "pov_baking_enable",
+            "pov_indentation_character",
+            "pov_indentation_spaces",
+            "pov_comments_enable",
+            "pov_command_line_switches",
+            "pov_antialias_enable",
+            "pov_antialias_method",
+            "pov_antialias_depth",
+            "pov_antialias_threshold",
+            "pov_jitter_enable",
+            "pov_jitter_amount",
+            "pov_antialias_gamma",
+            "pov_max_trace_level",
+            "pov_photon_spacing",
+            "pov_photon_max_trace_level",
+            "pov_photon_adc_bailout",
+            "pov_photon_gather_min",
+            "pov_photon_gather_max",
+            "pov_radio_adc_bailout",
+            "pov_radio_always_sample",
+            "pov_radio_brightness",
+            "pov_radio_count",
+            "pov_radio_error_bound",
+            "pov_radio_gray_threshold",
+            "pov_radio_low_error_factor",
+            "pov_radio_media",
+            "pov_radio_minimum_reuse",
+            "pov_radio_nearest_count",
+            "pov_radio_normal",
+            "pov_radio_recursion_limit",
+            "pov_radio_pretrace_start",
+            "pov_radio_pretrace_end",
+        ]
+    }
 
     # Get default values of pov material props.
-    old_mat_props = {}
-    for k in [
-        "pov_irid_enable",
-        "pov_mirror_use_IOR",
-        "pov_mirror_metallic",
-        "pov_conserve_energy",
-        "pov_irid_amount",
-        "pov_irid_thickness",
-        "pov_irid_turbulence",
-        "pov_interior_fade_color",
-        "pov_caustics_enable",
-        "pov_fake_caustics",
-        "pov_fake_caustics_power",
-        "pov_photons_refraction",
-        "pov_photons_dispersion",
-        "pov_photons_reflection",
-        "pov_refraction_type",
-        "pov_replacement_text",
-    ]:
-        old_mat_props[k] = getattr(bpy.types.Material, k)[1].get(
-            'default', None
-        )
+    old_mat_props = {
+        k: getattr(bpy.types.Material, k)[1].get('default', None)
+        for k in [
+            "pov_irid_enable",
+            "pov_mirror_use_IOR",
+            "pov_mirror_metallic",
+            "pov_conserve_energy",
+            "pov_irid_amount",
+            "pov_irid_thickness",
+            "pov_irid_turbulence",
+            "pov_interior_fade_color",
+            "pov_caustics_enable",
+            "pov_fake_caustics",
+            "pov_fake_caustics_power",
+            "pov_photons_refraction",
+            "pov_photons_dispersion",
+            "pov_photons_reflection",
+            "pov_refraction_type",
+            "pov_replacement_text",
+        ]
+    }
 
     # Get default values of pov texture props.
-    old_tex_props = {}
-    for k in [
-        "pov_tex_gamma_enable",
-        "pov_tex_gamma_value",
-        "pov_replacement_text",
-    ]:
-        old_tex_props[k] = getattr(bpy.types.Texture, k)[1].get('default', None)
+    old_tex_props = {
+        k: getattr(bpy.types.Texture, k)[1].get('default', None)
+        for k in [
+            "pov_tex_gamma_enable",
+            "pov_tex_gamma_value",
+            "pov_replacement_text",
+        ]
+    }
 
     # Get default values of pov object props.
-    old_obj_props = {}
-    for k in [
-        "pov_importance_value",
-        "pov_collect_photons",
-        "pov_replacement_text",
-    ]:
-        old_obj_props[k] = getattr(bpy.types.Object, k)[1].get('default', None)
+    old_obj_props = {
+        k: getattr(bpy.types.Object, k)[1].get('default', None)
+        for k in [
+            "pov_importance_value",
+            "pov_collect_photons",
+            "pov_replacement_text",
+        ]
+    }
 
     # Get default values of pov camera props.
-    old_cam_props = {}
-    for k in [
-        "pov_dof_enable",
-        "pov_dof_aperture",
-        "pov_dof_samples_min",
-        "pov_dof_samples_max",
-        "pov_dof_variance",
-        "pov_dof_confidence",
-        "pov_replacement_text",
-    ]:
-        old_cam_props[k] = getattr(bpy.types.Camera, k)[1].get('default', None)
+    old_cam_props = {
+        k: getattr(bpy.types.Camera, k)[1].get('default', None)
+        for k in [
+            "pov_dof_enable",
+            "pov_dof_aperture",
+            "pov_dof_samples_min",
+            "pov_dof_samples_max",
+            "pov_dof_variance",
+            "pov_dof_confidence",
+            "pov_replacement_text",
+        ]
+    }
 
     # Get default values of pov text props.
-    old_txt_props = {}
-    for k in ["pov_custom_code"]:
-        old_txt_props[k] = getattr(bpy.types.Text, k)[1].get('default', None)
+    old_txt_props = {
+        k: getattr(bpy.types.Text, k)[1].get('default', None)
+        for k in ["pov_custom_code"]
+    }
 
-    ################################################################################################
+    # -----------------------------------------------------------------------------
     # Now, update !
     # For each old pov property of each scene, if its value is not equal to the default one,
     # copy it to relevant new prop...
@@ -189,7 +207,7 @@ def update2_0_0_9():
 
 
 class RenderCopySettings(bpy.types.Operator):
-    """Update old POV properties to new ones"""
+    """Update old POV properties to new ones."""
 
     bl_idname = "scene.pov_update_properties"
     bl_label = "PovRay render: Update to script v0.0.9"
@@ -211,7 +229,7 @@ def register():
     Obj = bpy.types.Object
     Cam = bpy.types.Camera
     Text = bpy.types.Text
-    ###########################SCENE##################################
+    # -------------------------------------- SCENE --------------------------------------#
 
     # File Options
     Scene.pov_tempfiles_enable = BoolProperty(
@@ -253,19 +271,13 @@ def register():
 
     # Not a real pov option, just to know if we should write
     Scene.pov_radio_enable = BoolProperty(
-        name="Enable Radiosity",
-        description="Enable POV-Rays radiosity calculation",
-        default=False,
+        name="Enable Radiosity", description="Enable POV-Rays radiosity calculation", default=False
     )
     Scene.pov_radio_display_advanced = BoolProperty(
-        name="Advanced Options",
-        description="Show advanced options",
-        default=False,
+        name="Advanced Options", description="Show advanced options", default=False
     )
     Scene.pov_media_enable = BoolProperty(
-        name="Enable Media",
-        description="Enable POV-Rays atmospheric media",
-        default=False,
+        name="Enable Media", description="Enable POV-Rays atmospheric media", default=False
     )
     Scene.pov_media_samples = IntProperty(
         name="Samples",
@@ -288,9 +300,7 @@ def register():
     )
 
     Scene.pov_baking_enable = BoolProperty(
-        name="Enable Baking",
-        description="Enable POV-Rays texture baking",
-        default=False,
+        name="Enable Baking", description="Enable POV-Rays texture baking", default=False
     )
     Scene.pov_indentation_character = EnumProperty(
         name="Indentation",
@@ -311,9 +321,7 @@ def register():
     )
 
     Scene.pov_comments_enable = BoolProperty(
-        name="Enable Comments",
-        description="Add comments to pov file",
-        default=True,
+        name="Enable Comments", description="Add comments to pov file", default=True
     )
 
     # Real pov options
@@ -339,11 +347,7 @@ def register():
     )
 
     Scene.pov_antialias_depth = IntProperty(
-        name="Antialias Depth",
-        description="Depth of pixel for sampling",
-        min=1,
-        max=9,
-        default=3,
+        name="Antialias Depth", description="Depth of pixel for sampling", min=1, max=9, default=3
     )
 
     Scene.pov_antialias_threshold = FloatProperty(
@@ -504,9 +508,7 @@ def register():
 
     # max_sample - not available yet
     Scene.pov_radio_media = BoolProperty(
-        name="Media",
-        description="Radiosity estimation can be affected by media",
-        default=False,
+        name="Media", description="Radiosity estimation can be affected by media", default=False
     )
 
     Scene.pov_radio_minimum_reuse = FloatProperty(
@@ -529,9 +531,7 @@ def register():
     )
 
     Scene.pov_radio_normal = BoolProperty(
-        name="Normals",
-        description="Radiosity estimation can be affected by normals",
-        default=False,
+        name="Normals", description="Radiosity estimation can be affected by normals", default=False
     )
 
     Scene.pov_radio_recursion_limit = IntProperty(
@@ -563,7 +563,7 @@ def register():
         precision=3,
     )
 
-    #############################MATERIAL######################################
+    # -------------------------------------- MATERIAL -------------------------------------- #
 
     Mat.pov_irid_enable = BoolProperty(
         name="Enable Iridescence",
@@ -638,9 +638,7 @@ def register():
     )
 
     Mat.pov_fake_caustics = BoolProperty(
-        name="Fake Caustics",
-        description="use only (Fast) fake refractive caustics",
-        default=True,
+        name="Fake Caustics", description="use only (Fast) fake refractive caustics", default=True
     )
 
     Mat.pov_fake_caustics_power = FloatProperty(
@@ -654,9 +652,7 @@ def register():
     )
 
     Mat.pov_photons_refraction = BoolProperty(
-        name="Refractive Photon Caustics",
-        description="more physically correct",
-        default=False,
+        name="Refractive Photon Caustics", description="more physically correct", default=False
     )
 
     Mat.pov_photons_dispersion = FloatProperty(
@@ -686,7 +682,7 @@ def register():
         description="use fake caustics (fast) or true photons for refractive Caustics",
         default="1",
     )
-    ##################################CustomPOV Code############################
+    # -------------------------------------- CustomPOV Code -------------------------------------- #
     Mat.pov_replacement_text = StringProperty(
         name="Declared name:",
         description="Type the declared name in custom POV code or an external .inc it points at. texture {} expected",
@@ -711,7 +707,7 @@ def register():
         description="Type the declared name in custom POV code or an external .inc it points at. camera {} expected",
         default="",
     )
-    ##############################TEXTURE######################################
+    # -------------------------------------- TEXTURE -------------------------------------- #
 
     # Custom texture gamma
     Tex.pov_tex_gamma_enable = BoolProperty(
@@ -730,7 +726,7 @@ def register():
         default=1.00,
     )
 
-    #################################OBJECT####################################
+    # -------------------------------------- OBJECT -------------------------------------- #
 
     # Importance sampling
     Obj.pov_importance_value = FloatProperty(
@@ -748,13 +744,11 @@ def register():
         default=True,
     )
 
-    ##################################CAMERA###################################
+    # -------------------------------------- CAMERA -------------------------------------- #
 
     # DOF Toggle
     Cam.pov_dof_enable = BoolProperty(
-        name="Depth Of Field",
-        description="Enable POV-Ray Depth Of Field ",
-        default=True,
+        name="Depth Of Field", description="Enable POV-Ray Depth Of Field ", default=True
     )
 
     # Aperture (Intensity of the Blur)
@@ -800,7 +794,7 @@ def register():
         default=0.90,
     )
 
-    ###################################TEXT####################################
+    # -------------------------------------- TEXT -------------------------------------- #
 
     Text.pov_custom_code = BoolProperty(
         name="Custom Code",
@@ -816,12 +810,12 @@ def unregister():
     Obj = bpy.types.Object
     Cam = bpy.types.Camera
     Text = bpy.types.Text
-    del Scene.pov_tempfiles_enable  # CR
-    del Scene.pov_scene_name  # CR
-    del Scene.pov_deletefiles_enable  # CR
-    del Scene.pov_scene_path  # CR
-    del Scene.pov_renderimage_path  # CR
-    del Scene.pov_list_lf_enable  # CR
+    del Scene.pov_tempfiles_enable
+    del Scene.pov_scene_name
+    del Scene.pov_deletefiles_enable
+    del Scene.pov_scene_path
+    del Scene.pov_renderimage_path
+    del Scene.pov_list_lf_enable
     del Scene.pov_radio_enable
     del Scene.pov_radio_display_advanced
     del Scene.pov_radio_adc_bailout
@@ -836,56 +830,56 @@ def unregister():
     del Scene.pov_radio_nearest_count
     del Scene.pov_radio_normal
     del Scene.pov_radio_recursion_limit
-    del Scene.pov_radio_pretrace_start  # MR
-    del Scene.pov_radio_pretrace_end  # MR
-    del Scene.pov_media_enable  # MR
-    del Scene.pov_media_samples  # MR
-    del Scene.pov_media_color  # MR
-    del Scene.pov_baking_enable  # MR
-    del Scene.pov_max_trace_level  # MR
-    del Scene.pov_photon_spacing  # MR
-    del Scene.pov_photon_max_trace_level  # MR
-    del Scene.pov_photon_adc_bailout  # MR
-    del Scene.pov_photon_gather_min  # MR
-    del Scene.pov_photon_gather_max  # MR
-    del Scene.pov_antialias_enable  # CR
-    del Scene.pov_antialias_method  # CR
-    del Scene.pov_antialias_depth  # CR
-    del Scene.pov_antialias_threshold  # CR
-    del Scene.pov_antialias_gamma  # CR
-    del Scene.pov_jitter_enable  # CR
-    del Scene.pov_jitter_amount  # CR
-    del Scene.pov_command_line_switches  # CR
-    del Scene.pov_indentation_character  # CR
-    del Scene.pov_indentation_spaces  # CR
-    del Scene.pov_comments_enable  # CR
-    del Mat.pov_irid_enable  # MR
-    del Mat.pov_mirror_use_IOR  # MR
-    del Mat.pov_mirror_metallic  # MR
-    del Mat.pov_conserve_energy  # MR
-    del Mat.pov_irid_amount  # MR
-    del Mat.pov_irid_thickness  # MR
-    del Mat.pov_irid_turbulence  # MR
-    del Mat.pov_interior_fade_color  # MR
-    del Mat.pov_caustics_enable  # MR
-    del Mat.pov_fake_caustics  # MR
-    del Mat.pov_fake_caustics_power  # MR
-    del Mat.pov_photons_refraction  # MR
-    del Mat.pov_photons_dispersion  # MR
-    del Mat.pov_photons_reflection  # MR
-    del Mat.pov_refraction_type  # MR
-    del Mat.pov_replacement_text  # MR
-    del Tex.pov_tex_gamma_enable  # MR
-    del Tex.pov_tex_gamma_value  # MR
-    del Tex.pov_replacement_text  # MR
-    del Obj.pov_importance_value  # MR
-    del Obj.pov_collect_photons  # MR
-    del Obj.pov_replacement_text  # MR
-    del Cam.pov_dof_enable  # MR
-    del Cam.pov_dof_aperture  # MR
-    del Cam.pov_dof_samples_min  # MR
-    del Cam.pov_dof_samples_max  # MR
-    del Cam.pov_dof_variance  # MR
-    del Cam.pov_dof_confidence  # MR
-    del Cam.pov_replacement_text  # MR
-    del Text.pov_custom_code  # MR
+    del Scene.pov_radio_pretrace_start
+    del Scene.pov_radio_pretrace_end
+    del Scene.pov_media_enable
+    del Scene.pov_media_samples
+    del Scene.pov_media_color
+    del Scene.pov_baking_enable
+    del Scene.pov_max_trace_level
+    del Scene.pov_photon_spacing
+    del Scene.pov_photon_max_trace_level
+    del Scene.pov_photon_adc_bailout
+    del Scene.pov_photon_gather_min
+    del Scene.pov_photon_gather_max
+    del Scene.pov_antialias_enable
+    del Scene.pov_antialias_method
+    del Scene.pov_antialias_depth
+    del Scene.pov_antialias_threshold
+    del Scene.pov_antialias_gamma
+    del Scene.pov_jitter_enable
+    del Scene.pov_jitter_amount
+    del Scene.pov_command_line_switches
+    del Scene.pov_indentation_character
+    del Scene.pov_indentation_spaces
+    del Scene.pov_comments_enable
+    del Mat.pov_irid_enable
+    del Mat.pov_mirror_use_IOR
+    del Mat.pov_mirror_metallic
+    del Mat.pov_conserve_energy
+    del Mat.pov_irid_amount
+    del Mat.pov_irid_thickness
+    del Mat.pov_irid_turbulence
+    del Mat.pov_interior_fade_color
+    del Mat.pov_caustics_enable
+    del Mat.pov_fake_caustics
+    del Mat.pov_fake_caustics_power
+    del Mat.pov_photons_refraction
+    del Mat.pov_photons_dispersion
+    del Mat.pov_photons_reflection
+    del Mat.pov_refraction_type
+    del Mat.pov_replacement_text
+    del Tex.pov_tex_gamma_enable
+    del Tex.pov_tex_gamma_value
+    del Tex.pov_replacement_text
+    del Obj.pov_importance_value
+    del Obj.pov_collect_photons
+    del Obj.pov_replacement_text
+    del Cam.pov_dof_enable
+    del Cam.pov_dof_aperture
+    del Cam.pov_dof_samples_min
+    del Cam.pov_dof_samples_max
+    del Cam.pov_dof_variance
+    del Cam.pov_dof_confidence
+    del Cam.pov_replacement_text
+    del Text.pov_custom_code

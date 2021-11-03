@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-from blenderkit import paths, append_link, utils, ui, colors, tasks_queue, rerequests, resolutions
+from blenderkit import paths, append_link, utils, ui, colors, tasks_queue, rerequests, resolutions, ui_panels, search
 
 import threading
 import time
@@ -62,7 +62,7 @@ def check_missing():
     for l in missing:
         asset_data = l['asset_data']
 
-        downloaded = check_existing(asset_data, resolution=asset_data['resolution'])
+        downloaded = check_existing(asset_data, resolution=asset_data.get('resolution'))
         if downloaded:
             try:
                 l.reload()
@@ -75,6 +75,10 @@ def check_missing():
 def check_unused():
     '''find assets that have been deleted from scene but their library is still present.'''
     # this is obviously broken. Blender should take care of the extra data automaticlaly
+    # first clean up collections
+    for c in bpy.data.collections:
+        if len(c.all_objects) == 0 and c.get('is_blenderkit_asset'):
+            bpy.data.collections.remove(c)
     return;
     used_libs = []
     for ob in bpy.data.objects:
@@ -305,21 +309,20 @@ def append_asset(asset_data, **kwargs):  # downloaders=[], location=None,
     # how to do particle  drop:
     # link the group we are interested in( there are more groups in File!!!! , have to get the correct one!)
     s = bpy.context.scene
-
+    wm = bpy.context.window_manager
     user_preferences = bpy.context.preferences.addons['blenderkit'].preferences
 
     if user_preferences.api_key == '':
         user_preferences.asset_counter += 1
 
     if asset_data['assetType'] == 'scene':
-        sprops = s.blenderkit_scene
+        sprops = wm.blenderkit_scene
 
         scene = append_link.append_scene(file_names[0], link=sprops.append_link == 'LINK', fake_user=False)
-        print('scene appended')
+        # print('scene appended')
         if scene is not None:
             props = scene.blenderkit
             asset_main = scene
-            print(sprops.switch_after_append)
             if sprops.switch_after_append:
                 bpy.context.window_manager.windows[0].scene = scene
 
@@ -328,10 +331,9 @@ def append_asset(asset_data, **kwargs):  # downloaders=[], location=None,
         props = hdr.blenderkit
         asset_main = hdr
 
-
     if asset_data['assetType'] == 'model':
         downloaders = kwargs.get('downloaders')
-        sprops = s.blenderkit_models
+        sprops = wm.blenderkit_models
         # TODO this is here because combinations of linking objects or appending groups are rather not-usefull
         if sprops.append_method == 'LINK_COLLECTION':
             sprops.append_link = 'LINK'
@@ -469,7 +471,7 @@ def append_asset(asset_data, **kwargs):  # downloaders=[], location=None,
 
     elif asset_data['assetType'] == 'material':
         inscene = False
-        sprops = s.blenderkit_mat
+        sprops = wm.blenderkit_mat
 
         for m in bpy.data.materials:
             if m.blenderkit.id == asset_data['id']:
@@ -494,6 +496,7 @@ def append_asset(asset_data, **kwargs):  # downloaders=[], location=None,
     asset_main['asset_data'] = asset_data  # TODO remove this??? should write to blenderkit Props?
     asset_main.blenderkit.asset_base_id = asset_data['assetBaseId']
     asset_main.blenderkit.id = asset_data['id']
+
     bpy.ops.wm.undo_push_context(message='add %s to scene' % asset_data['name'])
     # moving reporting to on save.
     # report_use_success(asset_data['id'])
@@ -563,7 +566,7 @@ def replace_resolution_appended(file_paths, asset_data, resolution):
 
 
 # @bpy.app.handlers.persistent
-def timer_update():
+def download_timer():
     # TODO might get moved to handle all blenderkit stuff, not to slow down.
     '''
     check for running and finished downloads.
@@ -571,10 +574,14 @@ def timer_update():
     Finished downloads are processed and linked/appended to scene.
      '''
     global download_threads
+    # utils.p('start download timer')
+
     # bk_logger.debug('timer download')
 
     if len(download_threads) == 0:
-        return 2.0
+        # utils.p('end download timer')
+
+        return 2
     s = bpy.context.scene
     for threaddata in download_threads:
         t = threaddata[0]
@@ -589,13 +596,14 @@ def timer_update():
             if sr is not None:
                 for r in sr:
                     if asset_data['id'] == r['id']:
-                        r['downloaded'] = tcom.progress
-
+                        r['downloaded'] = 0.5  # tcom.progress
         if not t.is_alive():
             if tcom.error:
                 sprops = utils.get_search_props()
                 sprops.report = tcom.report
                 download_threads.remove(threaddata)
+                # utils.p('end download timer')
+
                 return
             file_paths = paths.get_download_filepaths(asset_data, tcom.passargs['resolution'])
 
@@ -661,6 +669,8 @@ def timer_update():
                                 sres['downloaded'] = 100
 
                 bk_logger.debug('finished download thread')
+    # utils.p('end download timer')
+
     return .5
 
 
@@ -685,9 +695,13 @@ def delete_unfinished_file(file_name):
     return
 
 
-def download_asset_file(asset_data, resolution='blend', api_key = ''):
+def download_asset_file(asset_data, resolution='blend', api_key=''):
     # this is a simple non-threaded way to download files for background resolution genenration tool
-    file_name = paths.get_download_filepaths(asset_data, resolution)[0]  # prefer global dir if possible.
+    file_names = paths.get_download_filepaths(asset_data, resolution)  # prefer global dir if possible.
+    if len(file_names) == 0:
+        return None
+
+    file_name = file_names[0]
 
     if check_existing(asset_data, resolution=resolution):
         # this sends the thread for processing, where another check should occur, since the file might be corrupted.
@@ -698,6 +712,7 @@ def download_asset_file(asset_data, resolution='blend', api_key = ''):
 
     with open(file_name, "wb") as f:
         print("Downloading %s" % file_name)
+        headers = utils.get_headers(api_key)
         res_file_info, resolution = paths.get_res_file(asset_data, resolution)
         response = requests.get(res_file_info['url'], stream=True)
         total_length = response.headers.get('Content-Length')
@@ -753,6 +768,7 @@ class Downloader(threading.Thread):
     # def main_download_thread(asset_data, tcom, scene_id, api_key):
     def run(self):
         '''try to download file from blenderkit'''
+        # utils.p('start downloader thread')
         asset_data = self.asset_data
         tcom = self.tcom
         scene_id = self.scene_id
@@ -832,6 +848,7 @@ class Downloader(threading.Thread):
         tcom.report = f'Unpacking files'
         self.asset_data['resolution'] = self.resolution
         resolutions.send_to_bg(self.asset_data, file_name, command='unpack')
+        # utils.p('end downloader thread')
 
 
 class ThreadCom:  # object passed to threads to read background process stdout info
@@ -1026,7 +1043,6 @@ def asset_in_scene(asset_data):
     au = scene.get('assets used', {})
 
     id = asset_data['assetBaseId']
-    print(id)
     if id in au.keys():
         ad = au[id]
         if ad.get('files'):
@@ -1226,7 +1242,7 @@ def show_enum_values(obj, prop_name):
 class BlenderkitDownloadOperator(bpy.types.Operator):
     """Download and link asset to scene. Only link if asset already available locally"""
     bl_idname = "scene.blenderkit_download"
-    bl_label = "BlenderKit Asset Download"
+    bl_label = "Download"
     bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
 
     # asset_type: EnumProperty(
@@ -1258,14 +1274,16 @@ class BlenderkitDownloadOperator(bpy.types.Operator):
 
     invoke_resolution: BoolProperty(name='Replace resolution popup',
                                     description='pop up to ask which resolution to download', default=False)
+    invoke_scene_settings: BoolProperty(name='Scene import settings popup',
+                                        description='pop up scene import settings', default=False)
 
     resolution: EnumProperty(
         items=available_resolutions_callback,
-        default=0,
+        default=512,
         description='Replace resolution'
     )
 
-    #needs to be passed to the operator to not show all resolution possibilities
+    # needs to be passed to the operator to not show all resolution possibilities
     max_resolution: IntProperty(
         name="Max resolution",
         description="",
@@ -1284,6 +1302,13 @@ class BlenderkitDownloadOperator(bpy.types.Operator):
     # @classmethod
     # def poll(cls, context):
     #     return bpy.context.window_manager.BlenderKitModelThumbnails is not ''
+    tooltip: bpy.props.StringProperty(
+        default='Download and link asset to scene. Only link if asset already available locally')
+
+    @classmethod
+    def description(cls, context, properties):
+        return properties.tooltip
+
     def get_asset_data(self, context):
         # get asset data - it can come from scene, or from search results.
         s = bpy.context.scene
@@ -1298,12 +1323,23 @@ class BlenderkitDownloadOperator(bpy.types.Operator):
             # or from the scene.
             asset_base_id = self.asset_base_id
 
-        au = s.get('assets used')
-        if au == None:
-            s['assets used'] = {}
-        if asset_base_id in s.get('assets used'):
-            # already used assets have already download link and especially file link.
-            asset_data = s['assets used'][asset_base_id].to_dict()
+            au = s.get('assets used')
+            if au == None:
+                s['assets used'] = {}
+            if asset_base_id in s.get('assets used'):
+                # already used assets have already download link and especially file link.
+                asset_data = s['assets used'][asset_base_id].to_dict()
+            else:
+                # when not in scene nor in search results, we need to get it from the server
+                params = {
+                    'asset_base_id': self.asset_base_id
+                }
+                preferences = bpy.context.preferences.addons['blenderkit'].preferences
+
+                results = search.get_search_simple(params, page_size=1, max_results=1,
+                                                   api_key=preferences.api_key)
+                asset_data = search.parse_result(results[0])
+
         return asset_data
 
     def execute(self, context):
@@ -1376,13 +1412,16 @@ class BlenderkitDownloadOperator(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, 'resolution', expand=True, icon_only=False)
+        if self.invoke_resolution:
+            layout.prop(self, 'resolution', expand=True, icon_only=False)
+        if self.invoke_scene_settings:
+            ui_panels.draw_scene_import_settings(self, context)
 
     def invoke(self, context, event):
         # if self.close_window:
         #     context.window.cursor_warp(event.mouse_x-1000, event.mouse_y - 1000);
 
-        print(self.asset_base_id)
+        # print(self.asset_base_id)
         wm = context.window_manager
         # only make a pop up in case of switching resolutions
         if self.invoke_resolution:
@@ -1390,7 +1429,7 @@ class BlenderkitDownloadOperator(bpy.types.Operator):
             self.asset_data = self.get_asset_data(context)
             sprops = utils.get_search_props()
 
-            #set initial resolutions enum activation
+            # set initial resolutions enum activation
             if sprops.resolution != 'ORIGINAL' and int(sprops.resolution) <= int(self.max_resolution):
                 self.resolution = sprops.resolution
             elif int(self.max_resolution) > 0:
@@ -1399,6 +1438,8 @@ class BlenderkitDownloadOperator(bpy.types.Operator):
                 self.resolution = 'ORIGINAL'
             return wm.invoke_props_dialog(self)
 
+        if self.invoke_scene_settings:
+            return wm.invoke_props_dialog(self)
         # if self.close_window:
         #     time.sleep(0.1)
         #     context.area.tag_redraw()
@@ -1415,8 +1456,8 @@ def register_download():
     bpy.app.handlers.load_post.append(scene_load)
     bpy.app.handlers.save_pre.append(scene_save)
     user_preferences = bpy.context.preferences.addons['blenderkit'].preferences
-    if user_preferences.use_timers:
-        bpy.app.timers.register(timer_update)
+    if user_preferences.use_timers and not bpy.app.background:
+        bpy.app.timers.register(download_timer)
 
 
 def unregister_download():
@@ -1424,5 +1465,5 @@ def unregister_download():
     bpy.utils.unregister_class(BlenderkitKillDownloadOperator)
     bpy.app.handlers.load_post.remove(scene_load)
     bpy.app.handlers.save_pre.remove(scene_save)
-    if bpy.app.timers.is_registered(timer_update):
-        bpy.app.timers.unregister(timer_update)
+    if bpy.app.timers.is_registered(download_timer):
+        bpy.app.timers.unregister(download_timer)

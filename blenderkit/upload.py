@@ -18,7 +18,7 @@
 
 
 from blenderkit import asset_inspector, paths, utils, bg_blender, autothumb, version_checker, search, ui_panels, ui, \
-    overrides, colors, rerequests, categories, upload_bg, tasks_queue, image_utils
+    overrides, colors, rerequests, categories, upload_bg, tasks_queue, image_utils, asset_bar_op
 
 import tempfile, os, subprocess, json, re
 
@@ -435,7 +435,7 @@ def get_upload_data(caller=None, context=None, asset_type=None):
         }
 
     elif asset_type == 'HDR':
-        ui_props = bpy.context.scene.blenderkitUI
+        ui_props = bpy.context.window_manager.blenderkitUI
 
         # imagename = ui_props.hdr_upload_image
         image = ui_props.hdr_upload_image  # bpy.data.images.get(imagename)
@@ -443,6 +443,9 @@ def get_upload_data(caller=None, context=None, asset_type=None):
             return None, None
 
         props = image.blenderkit
+
+        image_utils.analyze_image_is_true_hdr(image)
+
         # props.name = brush.name
         base, ext = os.path.splitext(image.filepath)
         thumb_path = base + '.jpg'
@@ -459,8 +462,8 @@ def get_upload_data(caller=None, context=None, asset_type=None):
         # mat analytics happen here, since they don't take up any time...
 
         upload_params = {
-            "textureResolutionMax": props.texture_resolution_max
-
+            "textureResolutionMax": props.texture_resolution_max,
+            "trueHDR": props.true_hdr
         }
 
         upload_data = {
@@ -543,7 +546,7 @@ def patch_individual_metadata(asset_id, metadata_dict, api_key):
 #
 #     def draw(self, context):
 #         layout = self.layout
-#         ui_props = context.scene.blenderkitUI
+#         ui_props = context.window_manager.blenderkitUI
 #
 #         # sr = bpy.context.window_manager['search results']
 #         sr = bpy.context.window_manager['search results']
@@ -644,7 +647,7 @@ class FastMetadata(bpy.types.Operator):
             ('PUBLIC', 'Public', '"Your asset will go into the validation process automatically')
         ),
         description="If not marked private, your asset will go into the validation process automatically\n"
-                    "Private assets are limited by quota.",
+                    "Private assets are limited by quota",
         default="PUBLIC",
     )
 
@@ -659,15 +662,12 @@ class FastMetadata(bpy.types.Operator):
         update=update_free_full
     )
 
-
     ####################
-
-
 
     @classmethod
     def poll(cls, context):
         scene = bpy.context.scene
-        ui_props = scene.blenderkitUI
+        ui_props = bpy.context.window_manager.blenderkitUI
         return True
 
     def draw(self, context):
@@ -693,7 +693,7 @@ class FastMetadata(bpy.types.Operator):
 
     def execute(self, context):
         user_preferences = bpy.context.preferences.addons['blenderkit'].preferences
-        props = bpy.context.scene.blenderkitUI
+        props = bpy.context.window_manager.blenderkitUI
         if self.subcategory1 != 'NONE':
             category = self.subcategory1
         elif self.subcategory != 'NONE':
@@ -722,16 +722,15 @@ class FastMetadata(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = bpy.context.scene
-        ui_props = scene.blenderkitUI
+        ui_props = bpy.context.window_manager.blenderkitUI
         if ui_props.active_index > -1:
             sr = bpy.context.window_manager['search results']
             asset_data = dict(sr[ui_props.active_index])
         else:
 
-            active_asset = utils.get_active_asset_by_type(asset_type = self.asset_type)
+            active_asset = utils.get_active_asset_by_type(asset_type=self.asset_type)
             asset_data = active_asset.get('asset_data')
 
-        print('can edit asset?', can_edit_asset(asset_data=asset_data))
         if not can_edit_asset(asset_data=asset_data):
             return {'CANCELLED'}
         self.asset_id = asset_data['id']
@@ -792,7 +791,7 @@ def get_upload_location(props):
 
     '''
     scene = bpy.context.scene
-    ui_props = scene.blenderkitUI
+    ui_props = bpy.context.window_manager.blenderkitUI
     if ui_props.asset_type == 'MODEL':
         if bpy.context.view_layer.objects.active is not None:
             ob = utils.get_active_model()
@@ -1081,6 +1080,9 @@ def start_upload(self, context, asset_type, reupload, upload_set):
     if 'THUMBNAIL' in upload_set:
         if asset_type == 'HDR':
             image_utils.generate_hdr_thumbnail()
+            # get upload data because the image utils function sets true_hdr
+            export_data, upload_data = get_upload_data(caller=self, context=context, asset_type=asset_type)
+
         elif not os.path.exists(export_data["thumbnail_path"]):
             props.upload_state = 'Thumbnail not found'
             props.uploading = False
@@ -1099,6 +1101,9 @@ def start_upload(self, context, asset_type, reupload, upload_set):
     export_data['temp_dir'] = tempfile.mkdtemp()
     export_data['source_filepath'] = os.path.join(export_data['temp_dir'], "export_blenderkit" + ext)
     if asset_type != 'HDR':
+        # if this isn't here, blender crashes.
+        bpy.context.preferences.filepaths.file_preview_type = 'NONE'
+
         bpy.ops.wm.save_as_mainfile(filepath=export_data['source_filepath'], compress=False, copy=True)
 
     export_data['binary_path'] = bpy.app.binary_path
@@ -1214,9 +1219,12 @@ class UploadOperator(Operator):
             layout.prop(self, 'thumbnail')
 
         if props.asset_base_id != '' and not self.reupload:
-            layout.label(text="Really upload as new? ")
-            layout.label(text="Do this only when you create a new asset from an old one.")
-            layout.label(text="For updates of thumbnail or model use reupload.")
+            utils.label_multiline(layout, text="Really upload as new?\n"
+                                               "Do this only when you create\n"
+                                               "a new asset from an old one.\n"
+                                               "For updates of thumbnail or model use reupload.\n",
+                                  width=400, icon='ERROR')
+
 
         if props.is_private == 'PUBLIC':
             if self.asset_type == 'MODEL':
@@ -1229,6 +1237,22 @@ class UploadOperator(Operator):
                                                    '-   Check if it has all textures and renders as expected\n'
                                                    '-   Check if it has correct size in world units (for models)'
                                       , width=400)
+            elif self.asset_type == 'HDR':
+                if not props.true_hdr:
+                    utils.label_multiline(layout, text="This image isn't HDR,\n"
+                                                       "It has a low dynamic range.\n"
+                                                       "BlenderKit library accepts 360 degree images\n"
+                                                       "however the default filter setting for search\n"
+                                                       "is to show only true HDR images\n"
+                                          , icon='ERROR', width=400)
+
+                utils.label_multiline(layout, text='You marked the asset as public.\n'
+                                                   'This means it will be validated by our team.\n\n'
+                                                   'Please test your upload after it finishes:\n'
+                                                   '-   Open a new file\n'
+                                                   '-   Find the asset and download it\n'
+                                                   '-   Check if it works as expected\n'
+                                      , width=400)
             else:
                 utils.label_multiline(layout, text='You marked the asset as public.\n'
                                                    'This means it will be validated by our team.\n\n'
@@ -1239,16 +1263,21 @@ class UploadOperator(Operator):
                                       , width=400)
 
     def invoke(self, context, event):
-        props = utils.get_upload_props()
 
         if not utils.user_logged_in():
             ui_panels.draw_not_logged_in(self, message='To upload assets you need to login/signup.')
             return {'CANCELLED'}
 
-        if props.is_private == 'PUBLIC':
-            return context.window_manager.invoke_props_dialog(self)
-        else:
-            return self.execute(context)
+        if self.asset_type == 'HDR':
+            props = utils.get_upload_props()
+            # getting upload data for images ensures true_hdr check so users can be informed about their handling
+            # simple 360 photos or renders with LDR are hidden by default..
+            export_data, upload_data = get_upload_data(asset_type='HDR')
+
+        # if props.is_private == 'PUBLIC':
+        return context.window_manager.invoke_props_dialog(self)
+        # else:
+        #     return self.execute(context)
 
 
 class AssetDebugPrint(Operator):
@@ -1275,16 +1304,11 @@ class AssetDebugPrint(Operator):
             return {'CANCELLED'};
         # update status in search results for validator's clarity
         sr = bpy.context.window_manager['search results']
-        sro = bpy.context.window_manager['search results orig']['results']
 
         result = None
         for r in sr:
             if r['id'] == self.asset_id:
                 result = r.to_dict()
-        if not result:
-            for r in sro:
-                if r['id'] == self.asset_id:
-                    result = r.to_dict()
         if not result:
             ad = bpy.context.active_object.get('asset_data')
             if ad:
@@ -1330,18 +1354,16 @@ class AssetVerificationStatusChange(Operator):
             return {'CANCELLED'};
         # update status in search results for validator's clarity
         sr = bpy.context.window_manager['search results']
-        sro = bpy.context.window_manager['search results orig']['results']
 
         for r in sr:
-            if r['id'] == self.asset_id:
-                r['verificationStatus'] = self.state
-        for r in sro:
             if r['id'] == self.asset_id:
                 r['verificationStatus'] = self.state
 
         thread = threading.Thread(target=verification_status_change_thread,
                                   args=(self.asset_id, self.state, preferences.api_key))
         thread.start()
+        if asset_bar_op.asset_bar_operator is not None:
+            asset_bar_op.asset_bar_operator.update_layout(context, None)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -1354,7 +1376,6 @@ class AssetVerificationStatusChange(Operator):
 
 def register_upload():
     bpy.utils.register_class(UploadOperator)
-    # bpy.utils.register_class(FastMetadataMenu)
     bpy.utils.register_class(FastMetadata)
     bpy.utils.register_class(AssetDebugPrint)
     bpy.utils.register_class(AssetVerificationStatusChange)
@@ -1362,7 +1383,6 @@ def register_upload():
 
 def unregister_upload():
     bpy.utils.unregister_class(UploadOperator)
-    # bpy.utils.unregister_class(FastMetadataMenu)
     bpy.utils.unregister_class(FastMetadata)
     bpy.utils.unregister_class(AssetDebugPrint)
     bpy.utils.unregister_class(AssetVerificationStatusChange)

@@ -67,7 +67,6 @@ def append_material(file_name, matname=None, link=False, fake_user=True):
     # we have to find the new material , due to possible name changes
     mat = None
     for m in bpy.data.materials:
-        print(m.name)
         if m not in mats_before:
             mat = m
             break;
@@ -94,7 +93,7 @@ def append_scene(file_name, scenename=None, link=False, fake_user=False):
     scene['uuid'] = str(uuid.uuid4())
 
     #reset ui_props of the scene to defaults:
-    ui_props = bpy.context.scene.blenderkitUI
+    ui_props = bpy.context.window_manager.blenderkitUI
     ui_props.down_up = 'SEARCH'
 
     return scene
@@ -303,17 +302,26 @@ def append_objects(file_name, obnames=[], location=(0, 0, 0), link=False, **kwar
         bpy.ops.object.select_all(action='DESELECT')
 
         path = file_name + "\\Collection\\"
-        object_name = kwargs.get('name')
+        collection_name = kwargs.get('name')
         fc = utils.get_fake_context(bpy.context, area_type='VIEW_3D')
-        bpy.ops.wm.append(fc, filename=object_name, directory=path)
+        bpy.ops.wm.append(fc, filename=collection_name, directory=path)
 
         return_obs = []
+        to_hidden_collection = []
+        collection = None
         for ob in bpy.context.scene.objects:
             if ob.select_get():
                 return_obs.append(ob)
                 if not ob.parent:
                     main_object = ob
                     ob.location = location
+                # check for object that should be hidden
+                if ob.users_collection[0].name == collection_name:
+                    collection = ob.users_collection[0]
+                    collection['is_blenderkit_asset'] = True
+
+                else:
+                    to_hidden_collection.append(ob)
 
         if kwargs.get('rotation'):
             main_object.rotation_euler = kwargs['rotation']
@@ -322,10 +330,23 @@ def append_objects(file_name, obnames=[], location=(0, 0, 0), link=False, **kwar
             main_object.parent = bpy.data.objects[kwargs['parent']]
             main_object.matrix_world.translation = location
 
+
+        #move objects that should be hidden to a sub collection
+        if len(to_hidden_collection)>0 and collection is not None:
+            hidden_collection_name = collection_name+'_hidden'
+            h_col = bpy.data.collections.new(name = hidden_collection_name)
+            collection.children.link(h_col)
+            for ob in to_hidden_collection:
+                ob.users_collection[0].objects.unlink(ob)
+                h_col.objects.link(ob)
+            utils.exclude_collection(hidden_collection_name)
+
         bpy.ops.object.select_all(action='DESELECT')
         utils.selection_set(sel)
+        #let collection also store info that it was created by BlenderKit, for purging reasons
 
         return main_object, return_obs
+
     #this is used for uploads:
     with bpy.data.libraries.load(file_name, link=link, relative=True) as (data_from, data_to):
         sobs = []

@@ -27,7 +27,7 @@ BLENDERKIT_API = "/api/v1/"
 BLENDERKIT_REPORT_URL = "usage_report/"
 BLENDERKIT_USER_ASSETS = "/my-assets"
 BLENDERKIT_PLANS = "/plans/pricing/"
-BLENDERKIT_MANUAL = "https://youtu.be/1hVgcQhIAo8"
+BLENDERKIT_MANUAL = "https://youtu.be/pSay3yaBWV0"
 BLENDERKIT_MODEL_UPLOAD_INSTRUCTIONS_URL = "https://www.blenderkit.com/docs/upload/"
 BLENDERKIT_MATERIAL_UPLOAD_INSTRUCTIONS_URL = "https://www.blenderkit.com/docs/uploading-material/"
 BLENDERKIT_BRUSH_UPLOAD_INSTRUCTIONS_URL = "https://www.blenderkit.com/docs/uploading-brush/"
@@ -83,6 +83,8 @@ def get_oauth_landing_url():
 def get_author_gallery_url(author_id):
     return f'{get_bkit_url()}/asset-gallery?query=author_id:{author_id}'
 
+def get_asset_gallery_url(asset_id):
+    return f'{get_bkit_url()}/asset-gallery-detail/{asset_id}/'
 
 def default_global_dict():
     from os.path import expanduser
@@ -94,9 +96,21 @@ def get_categories_filepath():
     tempdir = get_temp_dir()
     return os.path.join(tempdir, 'categories.json')
 
-
+dirs_exist_dict = {}#cache these results since this is used very often
+# this causes the function to fail if user deletes the directory while blender is running,
+# but comes back when blender is restarted.
 def get_temp_dir(subdir=None):
+
     user_preferences = bpy.context.preferences.addons['blenderkit'].preferences
+    #first try cached results
+    if subdir is not None:
+        d = dirs_exist_dict.get(subdir)
+        if d is not None:
+            return d
+    else:
+        d = dirs_exist_dict.get('top')
+        if d is not None:
+            return d
 
     # tempdir = user_preferences.temp_dir
     tempdir = os.path.join(tempfile.gettempdir(), 'bkit_temp')
@@ -105,10 +119,14 @@ def get_temp_dir(subdir=None):
     try:
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
+        dirs_exist_dict['top'] = tempdir
+
         if subdir is not None:
             tempdir = os.path.join(tempdir, subdir)
             if not os.path.exists(tempdir):
                 os.makedirs(tempdir)
+            dirs_exist_dict[subdir] = tempdir
+
         cleanup_old_folders()
     except:
         tasks_queue.add_task((ui.add_report, ('Cache directory not found. Resetting Cache folder path.',)))
@@ -292,7 +310,6 @@ def get_download_filepaths(asset_data, resolution='blend', can_return_others = F
     '''Get all possible paths of the asset and resolution. Usually global and local directory.'''
     dirs = get_download_dirs(asset_data['assetType'])
     res_file, resolution = get_res_file(asset_data, resolution, find_closest_with_url = can_return_others)
-
     name_slug = slugify(asset_data['name'])
     asset_folder_name = f"{name_slug}_{asset_data['id']}"
 
@@ -377,9 +394,10 @@ def get_addon_file(subpath=''):
     # fpath = os.path.join(p, subpath)
     return os.path.join(script_path, subpath)
 
+script_path = os.path.dirname(os.path.realpath(__file__))
 
 def get_addon_thumbnail_path(name):
-    script_path = os.path.dirname(os.path.realpath(__file__))
+    global script_path
     # fpath = os.path.join(p, subpath)
     ext = name.split('.')[-1]
     next = ''

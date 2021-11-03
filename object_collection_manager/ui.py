@@ -165,7 +165,7 @@ class CollectionManager(Operator):
         prop = c_icon.operator("view3d.set_active_collection",
                                               text='', icon='GROUP', depress=highlight)
         prop.is_master_collection = True
-        prop.collection_name = 'Master Collection'
+        prop.collection_name = 'Scene Collection'
 
         master_collection_row.separator()
 
@@ -226,7 +226,7 @@ class CollectionManager(Operator):
                                    depress=some_selected,
                                    )
         prop.is_master_collection = True
-        prop.collection_name = 'Master Collection'
+        prop.collection_name = 'Scene Collection'
 
 
         # global rtos
@@ -249,7 +249,7 @@ class CollectionManager(Operator):
 
         collection = context.view_layer.layer_collection.collection
 
-        icon = 'GRID'
+        icon = 'IMPORT'
 
         if collection.objects:
             icon = 'MESH_CUBE'
@@ -275,10 +275,10 @@ class CollectionManager(Operator):
                                 )
 
         # add operator
-        prop = row_setcol.operator("view3d.set_collection", text="",
+        prop = row_setcol.operator("view3d.send_objects_to_collection", text="",
                                    icon=icon, emboss=False)
         prop.is_master_collection = True
-        prop.collection_name = 'Master Collection'
+        prop.collection_name = 'Scene Collection'
 
         # add vertical separator line
         separator = row_setcol.row()
@@ -705,11 +705,11 @@ class CM_UL_items(UIList):
         add_vertical_separator_line(row)
 
 
-        # add set_collection op
+        # add send_objects_to_collection op
         set_obj_col = row.row()
         set_obj_col.operator_context = 'INVOKE_DEFAULT'
 
-        icon = 'GRID'
+        icon = 'IMPORT'
 
         if collection.objects:
             icon = 'MESH_CUBE'
@@ -725,7 +725,7 @@ class CM_UL_items(UIList):
             set_obj_col.enabled = False
 
 
-        prop = set_obj_col.operator("view3d.set_collection", text="",
+        prop = set_obj_col.operator("view3d.send_objects_to_collection", text="",
                                    icon=icon, emboss=False)
         prop.is_master_collection = False
         prop.collection_name = item.name
@@ -863,12 +863,10 @@ class CM_UL_items(UIList):
 
         subrow = row.row(align=True)
         subrow.prop(self, "filter_name", text="")
-
-        icon = 'ZOOM_OUT' if self.use_filter_invert else 'ZOOM_IN'
-        subrow.prop(self, "use_filter_invert", text="", icon=icon)
+        subrow.prop(self, "use_filter_invert", text="", icon='ARROW_LEFTRIGHT')
 
         subrow = row.row(align=True)
-        subrow.prop(self, "filter_by_selected", text="", icon='SNAP_VOLUME')
+        subrow.prop(self, "filter_by_selected", text="", icon='STICKY_UVS_LOC')
 
         if context.preferences.addons[__package__].preferences.enable_qcd:
             subrow.prop(self, "filter_by_qcd", text="", icon='EVENT_Q')
@@ -1006,6 +1004,10 @@ class SpecialsMenu(Menu):
                                text="Purge All Collections Without Objects")
         prop.without_objects = True
 
+        layout.separator()
+
+        layout.operator("view3d.select_all_cumulative_objects")
+
 
 class EnableAllQCDSlotsMenu(Menu):
     bl_label = "Global QCD Slot Actions"
@@ -1013,6 +1015,10 @@ class EnableAllQCDSlotsMenu(Menu):
 
     def draw(self, context):
         layout = self.layout
+
+        layout.operator("view3d.create_all_qcd_slots")
+
+        layout.separator()
 
         layout.operator("view3d.enable_all_qcd_slots")
         layout.operator("view3d.enable_all_qcd_slots_isolated")
@@ -1098,7 +1104,8 @@ def view3d_header_qcd_slots(self, context):
             prop.slot = str(x+1)
 
         else:
-            row.label(text="", icon='X')
+            prop = row.operator("view3d.unassigned_qcd_slot", text="", icon='X', emboss=False)
+            prop.slot = str(x+1)
 
 
         if idx%5==0:

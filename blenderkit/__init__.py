@@ -19,7 +19,7 @@
 bl_info = {
     "name": "BlenderKit Online Asset Library",
     "author": "Vilem Duha, Petr Dlouhy",
-    "version": (2, 93, 0),
+    "version": (3, 0, 0),
     "blender": (2, 93, 0),
     "location": "View3D > Properties > BlenderKit",
     "description": "Online BlenderKit library (materials, models, brushes and more). Connects to the internet.",
@@ -50,6 +50,7 @@ if "bpy" in locals():
     paths = reload(paths)
     ratings = reload(ratings)
     ratings_utils = reload(ratings_utils)
+    comments_utils = reload(comments_utils)
     resolutions = reload(resolutions)
     search = reload(search)
     tasks_queue = reload(tasks_queue)
@@ -60,8 +61,10 @@ if "bpy" in locals():
     upload_bg = reload(upload_bg)
     utils = reload(utils)
 
+    bl_ui_widget = reload(bl_ui_widget)
     bl_ui_label = reload(bl_ui_label)
     bl_ui_button = reload(bl_ui_button)
+    bl_ui_image = reload(bl_ui_image)
     # bl_ui_checkbox = reload(bl_ui_checkbox)
     # bl_ui_slider = reload(bl_ui_slider)
     # bl_ui_up_down = reload(bl_ui_up_down)
@@ -86,6 +89,7 @@ else:
     from blenderkit import paths
     from blenderkit import ratings
     from blenderkit import ratings_utils
+    from blenderkit import comments_utils
     from blenderkit import resolutions
     from blenderkit import search
     from blenderkit import tasks_queue
@@ -96,13 +100,15 @@ else:
     from blenderkit import upload_bg
     from blenderkit import utils
 
+    from blenderkit.bl_ui_widgets import bl_ui_widget
     from blenderkit.bl_ui_widgets import bl_ui_label
     from blenderkit.bl_ui_widgets import bl_ui_button
+    from blenderkit.bl_ui_widgets import bl_ui_image
     # from blenderkit.bl_ui_widgets import bl_ui_checkbox
     # from blenderkit.bl_ui_widgets import bl_ui_slider
     # from blenderkit.bl_ui_widgets import bl_ui_up_down
-    from blenderkit.bl_ui_widgets import bl_ui_drag_panel
     from blenderkit.bl_ui_widgets import bl_ui_draw_op
+    from blenderkit.bl_ui_widgets import bl_ui_drag_panel
     # from blenderkit.bl_ui_widgets import bl_ui_textbox
 
 import os
@@ -141,11 +147,7 @@ from bpy.types import (
 
 @persistent
 def scene_load(context):
-    print('loading in background')
-    print(bpy.context.window_manager)
-    if not bpy.app.background:
-        search.load_previews()
-    ui_props = bpy.context.scene.blenderkitUI
+    ui_props = bpy.context.window_manager.blenderkitUI
     ui_props.assetbar_on = False
     ui_props.turn_off = False
     preferences = bpy.context.preferences.addons['blenderkit'].preferences
@@ -155,15 +157,16 @@ def scene_load(context):
 @bpy.app.handlers.persistent
 def check_timers_timer():
     ''' checks if all timers are registered regularly. Prevents possible bugs from stopping the addon.'''
-    if not bpy.app.timers.is_registered(search.timer_update):
-        bpy.app.timers.register(search.timer_update)
-    if not bpy.app.timers.is_registered(download.timer_update):
-        bpy.app.timers.register(download.timer_update)
-    if not (bpy.app.timers.is_registered(tasks_queue.queue_worker)):
-        bpy.app.timers.register(tasks_queue.queue_worker)
-    if not bpy.app.timers.is_registered(bg_blender.bg_update):
-        bpy.app.timers.register(bg_blender.bg_update)
-    return 5.0
+    if not bpy.app.background:
+        if not bpy.app.timers.is_registered(search.search_timer):
+            bpy.app.timers.register(search.search_timer)
+        if not bpy.app.timers.is_registered(download.download_timer):
+            bpy.app.timers.register(download.download_timer)
+        if not (bpy.app.timers.is_registered(tasks_queue.queue_worker)):
+            bpy.app.timers.register(tasks_queue.queue_worker)
+        if not bpy.app.timers.is_registered(bg_blender.bg_update):
+            bpy.app.timers.register(bg_blender.bg_update)
+        return 5.0
 
 
 conditions = (
@@ -239,7 +242,7 @@ def udate_down_up(self, context):
     """Perform a search if results are empty."""
     s = context.scene
     wm = bpy.context.window_manager
-    props = s.blenderkitUI
+    props = bpy.context.window_manager.blenderkitUI
     if wm.get('search results') == None and props.down_up == 'SEARCH':
         search.search()
 
@@ -247,7 +250,7 @@ def udate_down_up(self, context):
 def switch_search_results(self, context):
     s = bpy.context.scene
     wm = bpy.context.window_manager
-    props = s.blenderkitUI
+    props = bpy.context.window_manager.blenderkitUI
     if props.asset_type == 'MODEL':
         wm['search results'] = wm.get('bkit model search')
         wm['search results orig'] = wm.get('bkit model search orig')
@@ -269,6 +272,10 @@ def switch_search_results(self, context):
         if not (context.sculpt_object or context.image_paint_object):
             ui.add_report(
                 'Switch to paint or sculpt mode to search in BlenderKit brushes.')
+    # if wm['search results'] == None:
+    #     wm['search results'] = []
+    # if wm['search results orig'] == None:
+    #     wm['search results orig'] = {'count': 0, 'results': []}
 
     search.load_previews()
     if wm['search results'] == None and props.down_up == 'SEARCH':
@@ -306,7 +313,19 @@ def asset_type_callback(self, context):
     return items
 
 
+def run_drag_drop_update(self, context):
+    if self.drag_init_button:
+        ui_props = bpy.context.window_manager.blenderkitUI
+        # ctx = utils.get_fake_context(bpy.context)
+
+        bpy.ops.view3d.close_popup_button('INVOKE_DEFAULT')
+        bpy.ops.view3d.asset_drag_drop('INVOKE_DEFAULT', asset_search_index=ui_props.active_index + ui_props.scroll_offset)
+
+        self.drag_init_button = False
+
+
 class BlenderKitUIProps(PropertyGroup):
+
     down_up: EnumProperty(
         name="Download vs Upload",
         items=(
@@ -346,7 +365,7 @@ class BlenderKitUIProps(PropertyGroup):
     highlight_margin: IntProperty(name="Highlight Margin", default=int(margin_def / 2), min=-10, max=256)
 
     bar_height: IntProperty(name="Bar Height", default=thumb_size_def + 2 * margin_def, min=-1, max=2048)
-    bar_x_offset: IntProperty(name="Bar X Offset", default=20, min=0, max=5000)
+    bar_x_offset: IntProperty(name="Bar X Offset", default=40, min=0, max=5000)
     bar_y_offset: IntProperty(name="Bar Y Offset", default=80, min=0, max=5000)
 
     bar_x: IntProperty(name="Bar X", default=100, min=0, max=5000)
@@ -367,11 +386,15 @@ class BlenderKitUIProps(PropertyGroup):
     mouse_y: IntProperty(name="Mouse Y", default=0)
 
     active_index: IntProperty(name="Active Index", default=-3)
-    scrolloffset: IntProperty(name="Scroll Offset", default=0)
+    scroll_offset: IntProperty(name="Scroll Offset", default=0)
     drawoffset: IntProperty(name="Draw Offset", default=0)
 
     dragging: BoolProperty(name="Dragging", default=False)
     drag_init: BoolProperty(name="Drag Initialisation", default=False)
+    drag_init_button: BoolProperty(name="Drag Initialisation from button",
+                                   default=False,
+                                   description="Click or drag into scene for download",
+                                   update = run_drag_drop_update)
     drag_length: IntProperty(name="Drag length", default=0)
     draw_drag_image: BoolProperty(name="Draw Drag Image", default=False)
     draw_snapped_bounds: BoolProperty(name="Draw Snapped Bounds", default=False)
@@ -447,8 +470,8 @@ class BlenderKitCommonSearchProps(object):
                               default=False)
     own_only: BoolProperty(name="My Assets Only", description="Search only for your assets",
                            default=False, update=search.search_update)
-    search_advanced: BoolProperty(name="Advanced Search Options", description="use advanced search properties",
-                                  default=False, update=search.search_update)
+    use_filters: BoolProperty(name="Filters are on", description="some filters are used",
+                                  default=False)
 
     search_error: BoolProperty(name="Search Error", description="last search had an error", default=False)
     report: StringProperty(
@@ -557,6 +580,10 @@ class BlenderKitCommonSearchProps(object):
 
     unrated_only: BoolProperty(name="Unrated only", description="Show only unrated models",
                                default=False, update=search.search_update)
+    quality_limit: IntProperty(name="Quality limit",
+                               description = 'Only show assets with a higher quality',
+                               default=0, min=0, max=10, update=search.search_update)
+
 
 
 def name_update(self, context):
@@ -681,9 +708,9 @@ class BlenderKitCommonUploadProps(object):
         name="Thumbnail Style",
         items=(
             ('FULL', 'Full', "Your asset will be only available for subscribers"),
-            ('FREE', 'Free', "You consent you want to release this asset as free for everyone.")
+            ('FREE', 'Free', "You consent you want to release this asset as free for everyone")
         ),
-        description="Assets can be in Free or in Full plan. Also free assets generate credits.",
+        description="Assets can be in Free or in Full plan. Also free assets generate credits",
         default="FULL",
     )
 
@@ -855,7 +882,7 @@ class BlenderKitMaterialUploadProps(PropertyGroup, BlenderKitCommonUploadProps):
             ('FREE', 'Free', "You consent you want to release this asset as free for everyone.")
         ),
         description="Assets can be in Free or in Full plan. Also free assets generate credits. \n"
-                    "All BlenderKit materials are free.",
+                    "All BlenderKit materials are free",
         default="FREE",
         update=update_free
     )
@@ -870,7 +897,7 @@ class BlenderKitMaterialUploadProps(PropertyGroup, BlenderKitCommonUploadProps):
     texture_resolution_max: IntProperty(name="Texture Resolution Max", description="texture resolution maximum",
                                         default=0)
 
-    texture_size_meters: FloatProperty(name="Texture Size in Meters", description="Size of texture in real world units.",
+    texture_size_meters: FloatProperty(name="Texture Size in Meters", description="Size of texture in real world units",
                                        default=1.0, min=0)
 
     thumbnail_scale: FloatProperty(name="Thumbnail Object Size",
@@ -916,9 +943,9 @@ class BlenderKitMaterialUploadProps(PropertyGroup, BlenderKitCommonUploadProps):
 
     thumbnail: StringProperty(
         name="Thumbnail",
-        description="Thumbnail path - 512x512 .jpg image, rendered with cycles. \n"
+        description="Thumbnail path - 512x512 .jpg image, rendered with cycles.\n"
                     "Only standard BlenderKit previews will be accepted.\n"
-                    "Only exception are special effects like fire or similar.",
+                    "Only exception are special effects like fire or similar",
         subtype='FILE_PATH',
         default="",
         update=autothumb.update_upload_material_preview)
@@ -960,16 +987,19 @@ class BlenderKitBrushSearchProps(PropertyGroup, BlenderKitCommonSearchProps):
 class BlenderKitHDRUploadProps(PropertyGroup, BlenderKitCommonUploadProps):
     texture_resolution_max: IntProperty(name="Texture Resolution Max", description="texture resolution maximum",
                                         default=0)
+    evs_cap: IntProperty(name="EV cap", description="EVs dynamic range",
+                                        default=0)
+    true_hdr: BoolProperty(name="Real HDR", description="Image has High dynamic range.",default=False)
 
 
 class BlenderKitBrushUploadProps(PropertyGroup, BlenderKitCommonUploadProps):
     mode: EnumProperty(
         name="Mode",
         items=(
-            ('IMAGE', 'Texture paint', "Texture brush"),
-            ('SCULPT', 'Sculpt', 'Sculpt brush'),
-            ('VERTEX', 'Vertex paint', 'Vertex paint brush'),
-            ('WEIGHT', 'Weight paint', 'Weight paint brush'),
+            ("IMAGE", "Texture paint", "Texture brush"),
+            ("SCULPT", "Sculpt", "Sculpt brush"),
+            ("VERTEX", "Vertex paint", "Vertex paint brush"),
+            ("WEIGHT", "Weight paint", "Weight paint brush"),
         ),
         description="Mode where the brush works",
         default="SCULPT",
@@ -1498,6 +1528,13 @@ class BlenderKitHDRSearchProps(PropertyGroup, BlenderKitCommonSearchProps):
         update=search.search_update
     )
 
+    true_hdr: BoolProperty(
+        name='Real HDRs only',
+        description='Search only for real HDRs, this means images that have a range higher than 0-1 in their pixels.',
+        default=True,
+        update=search.search_update
+    )
+
 
 class BlenderKitSceneSearchProps(PropertyGroup, BlenderKitCommonSearchProps):
     search_keywords: StringProperty(
@@ -1542,7 +1579,7 @@ class BlenderKitSceneSearchProps(PropertyGroup, BlenderKitCommonSearchProps):
     )
     switch_after_append: BoolProperty(
         name='Switch to scene after download',
-        default=False
+        default=True
     )
 
 
@@ -1688,17 +1725,23 @@ class BlenderKitAddonPreferences(AddonPreferences):
     max_assetbar_rows: IntProperty(name="Max Assetbar Rows",
                                    description="max rows of assetbar in the 3D view",
                                    default=1,
-                                   min=0,
+                                   min=1,
                                    max=20)
 
     thumb_size: IntProperty(name="Assetbar thumbnail Size", default=96, min=-1, max=256)
 
+    #counts usages so it can encourage user after some time to do things.
     asset_counter: IntProperty(name="Usage Counter",
                                description="Counts usages so it asks for registration only after reaching a limit",
                                default=0,
                                min=0,
                                max=20000)
 
+    notifications_counter: IntProperty(
+        name='Notifications Counter',
+        description='count users notifications',
+        default=0,
+    )
     # this is now made obsolete by the new popup upon registration -ensures the user knows about the first search.
     # first_run: BoolProperty(
     #     name="First run",
@@ -1714,16 +1757,23 @@ class BlenderKitAddonPreferences(AddonPreferences):
         update=utils.save_prefs
     )
 
+    # single_timer: BoolProperty(
+    #     name="Use timers",
+    #     description="Use timers for BlenderKit. Usefull for debugging since timers seem to be unstable",
+    #     default=True,
+    #     update=utils.save_prefs
+    # )
+
     experimental_features: BoolProperty(
         name="Enable experimental features",
-        description="Enable all experimental features of BlenderKit. Use at your own risk.",
+        description="Enable all experimental features of BlenderKit. Use at your own risk",
         default=False,
         update=utils.save_prefs
     )
 
     categories_fix: BoolProperty(
         name="Enable category fixing mode",
-        description="Enable category fixing mode.",
+        description="Enable category fixing mode",
         default=False,
         update=utils.save_prefs
     )
@@ -1773,6 +1823,15 @@ class BlenderKitAddonPreferences(AddonPreferences):
             layout.prop(self, "categories_fix")
 
 
+# # @bpy.app.handlers.persistent
+# def blenderkit_timer():
+#
+#
+# if not user_preferences.use_timers:
+#     search.search_timer()
+#     download.download_timer()
+#     tasks_queue.queue_worker()
+#     bg_blender.bg_update()
 # registration
 classes = (
 
@@ -1800,15 +1859,16 @@ classes = (
 )
 
 
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Scene.blenderkitUI = PointerProperty(
+    bpy.types.WindowManager.blenderkitUI = PointerProperty(
         type=BlenderKitUIProps)
 
     # MODELS
-    bpy.types.Scene.blenderkit_models = PointerProperty(
+    bpy.types.WindowManager.blenderkit_models = PointerProperty(
         type=BlenderKitModelSearchProps)
     bpy.types.Object.blenderkit = PointerProperty(  # for uploads, not now...
         type=BlenderKitModelUploadProps)
@@ -1816,7 +1876,7 @@ def register():
         type=BlenderKitRatingProps)
 
     # SCENES
-    bpy.types.Scene.blenderkit_scene = PointerProperty(
+    bpy.types.WindowManager.blenderkit_scene = PointerProperty(
         type=BlenderKitSceneSearchProps)
     bpy.types.Scene.blenderkit = PointerProperty(  # for uploads, not now...
         type=BlenderKitSceneUploadProps)
@@ -1824,7 +1884,7 @@ def register():
         type=BlenderKitRatingProps)
 
     # HDRs
-    bpy.types.Scene.blenderkit_HDR = PointerProperty(
+    bpy.types.WindowManager.blenderkit_HDR = PointerProperty(
         type=BlenderKitHDRSearchProps)
     bpy.types.Image.blenderkit = PointerProperty(  # for uploads, not now...
         type=BlenderKitHDRUploadProps)
@@ -1832,7 +1892,7 @@ def register():
         type=BlenderKitRatingProps)
 
     # MATERIALS
-    bpy.types.Scene.blenderkit_mat = PointerProperty(
+    bpy.types.WindowManager.blenderkit_mat = PointerProperty(
         type=BlenderKitMaterialSearchProps)
     bpy.types.Material.blenderkit = PointerProperty(  # for uploads, not now...
         type=BlenderKitMaterialUploadProps)
@@ -1840,7 +1900,7 @@ def register():
         type=BlenderKitRatingProps)
 
     # BRUSHES
-    bpy.types.Scene.blenderkit_brush = PointerProperty(
+    bpy.types.WindowManager.blenderkit_brush = PointerProperty(
         type=BlenderKitBrushSearchProps)
     bpy.types.Brush.blenderkit = PointerProperty(  # for uploads, not now...
         type=BlenderKitBrushUploadProps)
@@ -1864,7 +1924,7 @@ def register():
     asset_bar_op.register()
 
     user_preferences = bpy.context.preferences.addons['blenderkit'].preferences
-    if user_preferences.use_timers:
+    if user_preferences.use_timers and not bpy.app.background:
         bpy.app.timers.register(check_timers_timer, persistent=True)
 
     bpy.app.handlers.load_post.append(scene_load)
@@ -1874,6 +1934,8 @@ def register():
             if a.type == 'PREFERENCES':
                 tasks_queue.add_task((bpy.ops.wm.blenderkit_welcome, ('INVOKE_DEFAULT',)), fake_context=True,
                                      fake_context_area='PREFERENCES')
+                #save preferences after manually enabling the addon
+                tasks_queue.add_task((bpy.ops.wm.save_userpref, ()), fake_context=False,)
 
 
 def unregister():
@@ -1895,11 +1957,11 @@ def unregister():
     tasks_queue.unregister()
     asset_bar_op.unregister()
 
-    del bpy.types.Scene.blenderkit_models
-    del bpy.types.Scene.blenderkit_scene
-    del bpy.types.Scene.blenderkit_HDR
-    del bpy.types.Scene.blenderkit_brush
-    del bpy.types.Scene.blenderkit_mat
+    del bpy.types.WindowManager.blenderkit_models
+    del bpy.types.WindowManager.blenderkit_scene
+    del bpy.types.WindowManager.blenderkit_HDR
+    del bpy.types.WindowManager.blenderkit_brush
+    del bpy.types.WindowManager.blenderkit_mat
 
     del bpy.types.Scene.blenderkit
     del bpy.types.Object.blenderkit

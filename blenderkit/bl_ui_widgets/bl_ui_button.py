@@ -67,20 +67,32 @@ class BL_UI_Button(BL_UI_Widget):
         self.__image_position = image_position
 
     def set_image(self, rel_filepath):
+        #first try to access the image, for cases where it can get removed
         try:
-            self.__image = bpy.data.images.load(rel_filepath, check_existing=True)
-            self.__image.gl_load()
+            self.__image
+            self.__image.filepath
+            self.__image.pixels
         except:
-            pass
+            self.__image = None
+        try:
+            if self.__image is None or self.__image.filepath != rel_filepath:
+                self.__image = bpy.data.images.load(rel_filepath, check_existing=True)
+                self.__image.gl_load()
+
+            if self.__image and len(self.__image.pixels) == 0:
+                self.__image.reload()
+                self.__image.gl_load()
+
+        except Exception as e:
+            self.__image = None
 
     def update(self, x, y):
         super().update(x, y)
         self._textpos = [x, y]
 
     def draw(self):
-        if not self.visible:
+        if not self._is_visible:
             return
-
         area_height = self.get_area_height()
 
         self.shader.bind()
@@ -113,16 +125,17 @@ class BL_UI_Button(BL_UI_Widget):
         self.shader.uniform_float("color", color)
 
     def draw_text(self, area_height):
-        blf.size(0, self._text_size, 72)
+        font_id = 1
+        blf.size(font_id, self._text_size, 72)
         size = blf.dimensions(0, self._text)
 
         textpos_y = area_height - self._textpos[1] - (self.height + size[1]) / 2.0
-        blf.position(0, self._textpos[0] + (self.width - size[0]) / 2.0, textpos_y + 1, 0)
+        blf.position(font_id, self._textpos[0] + (self.width - size[0]) / 2.0, textpos_y + 1, 0)
 
         r, g, b, a = self._text_color
-        blf.color(0, r, g, b, a)
+        blf.color(font_id, r, g, b, a)
 
-        blf.draw(0, self._text)
+        blf.draw(font_id, self._text)
 
     def draw_image(self):
         if self.__image is not None:

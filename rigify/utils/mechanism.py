@@ -21,7 +21,9 @@
 import bpy
 import re
 
-from rna_prop_ui import rna_idprop_ui_create, rna_idprop_ui_prop_get
+from bpy.types import bpy_prop_collection, Material
+
+from rna_prop_ui import rna_idprop_ui_create
 from rna_prop_ui import rna_idprop_quote_path as quote_property
 
 from .misc import force_lazy
@@ -135,7 +137,7 @@ def make_property(
     """
 
     # Some keyword argument defaults differ
-    return rna_idprop_ui_create(
+    rna_idprop_ui_create(
         owner, name, default = default,
         min = min, max = max, soft_min = soft_min, soft_max = soft_max,
         description = description or name,
@@ -312,6 +314,11 @@ def make_driver(owner, prop, *, index=-1, type='SUM', expression=None, variables
     return fcu
 
 
+#=============================================
+# Driver variable utilities
+#=============================================
+
+
 def driver_var_transform(target, bone=None, *, type='LOC_X', space='WORLD', rotation_mode='AUTO'):
     """
     Create a Transform Channel driver variable specification.
@@ -335,6 +342,38 @@ def driver_var_transform(target, bone=None, *, type='LOC_X', space='WORLD', rota
         target_map['bone_target'] = bone
 
     return { 'type': 'TRANSFORMS', 'targets': [ target_map ] }
+
+
+def driver_var_distance(target, *, bone1=None, target2=None, bone2=None, space1='WORLD', space2='WORLD'):
+    """
+    Create a Distance driver variable specification.
+
+    Usage:
+        make_driver(..., variables=[driver_var_distance(...)])
+
+    Target bone name can be provided via a 'lazy' callable closure without arguments.
+    """
+
+    assert space1 in {'WORLD', 'TRANSFORM', 'LOCAL'}
+    assert space2 in {'WORLD', 'TRANSFORM', 'LOCAL'}
+
+    target1_map = {
+        'id': target,
+        'transform_space': space1 + '_SPACE',
+    }
+
+    if bone1 is not None:
+        target1_map['bone_target'] = bone1
+
+    target2_map = {
+        'id': target2 or target,
+        'transform_space': space2 + '_SPACE',
+    }
+
+    if bone2 is not None:
+        target2_map['bone_target'] = bone2
+
+    return {'type': 'LOC_DIFF', 'targets': [target1_map, target2_map]}
 
 
 #=============================================
@@ -401,8 +440,9 @@ def deactivate_custom_properties(obj, *, reset=True):
         for key, value in obj.items():
             valtype = type(value)
             if valtype in {int, float}:
-                info = rna_idprop_ui_prop_get(obj, key, False) or {}
-                obj[key] = valtype(info.get("default", 0))
+                ui_data = obj.id_properties_ui(key)
+                rna_data = ui_data.as_dict()
+                obj[key] = valtype(rna_data.get("default", 0))
 
 
 def reactivate_custom_properties(obj):
@@ -423,21 +463,19 @@ def reactivate_custom_properties(obj):
 def copy_custom_properties(src, dest, *, prefix='', dest_prefix='', link_driver=False, overridable=True):
     """Copy custom properties with filtering by prefix. Optionally link using drivers."""
     res = []
-    exclude = {'_RNA_UI', 'rigify_parameters', 'rigify_type'}
+    exclude = {'rigify_parameters', 'rigify_type'}
 
     for key, value in src.items():
         if key.startswith(prefix) and key not in exclude:
             new_key = dest_prefix + key[len(prefix):]
 
-            info = rna_idprop_ui_prop_get(src, key, False)
+            ui_data_src = src.id_properties_ui(key)
+
 
             if src != dest or new_key != key:
                 dest[new_key] = value
 
-                if info:
-                    info2 = rna_idprop_ui_prop_get(dest, new_key, True)
-                    for ki, vi in info.items():
-                        info2[ki] = vi
+                dest.id_properties_ui(new_key).update_from(ui_data_src)
 
                 if link_driver:
                     make_driver(src, quote_property(key), variables=[(dest.id_data, dest, new_key)])
@@ -445,7 +483,7 @@ def copy_custom_properties(src, dest, *, prefix='', dest_prefix='', link_driver=
             if overridable:
                 dest.property_overridable_library_set(quote_property(new_key), True)
 
-            res.append((key, new_key, value, info))
+            res.append((key, new_key, value))
 
     return res
 
@@ -461,7 +499,7 @@ def copy_custom_properties_with_ui(rig, src, dest_bone, *, ui_controls=None, **o
     if mapping:
         panel = rig.script.panel_with_selected_check(rig, ui_controls or rig.bones.flatten('ctrl'))
 
-        for key,new_key,value,info in sorted(mapping, key=lambda item: item[1]):
+        for key,new_key,value in sorted(mapping, key=lambda item: item[1]):
             name = new_key
 
             # Replace delimiters with spaces
@@ -474,11 +512,44 @@ def copy_custom_properties_with_ui(rig, src, dest_bone, *, ui_controls=None, **o
             if name.lower() == name:
                 name = name.title()
 
+            info = bone.id_properties_ui(new_key).as_dict()
             slider = type(value) is float and info and info.get("min", None) == 0 and info.get("max", None) == 1
 
             panel.custom_prop(dest_bone, new_key, text=name, slider=slider)
 
     return mapping
+
+
+#=============================================
+# Driver management
+#=============================================
+
+def refresh_drivers(obj):
+    """Cause all drivers belonging to the object to be re-evaluated, clearing any errors."""
+
+    # Refresh object's own drivers if any
+    anim_data = getattr(obj, 'animation_data', None)
+
+    if anim_data:
+        for fcu in anim_data.drivers:
+            # Make a fake change to the driver
+            fcu.driver.type = fcu.driver.type
+
+    # Material node trees aren't in any lists
+    if isinstance(obj, Material):
+        refresh_drivers(obj.node_tree)
+
+
+def refresh_all_drivers():
+    """Cause all drivers in the file to be re-evaluated, clearing any errors."""
+
+    # Iterate over all datablocks in the file
+    for attr in dir(bpy.data):
+        coll = getattr(bpy.data, attr, None)
+
+        if isinstance(coll, bpy_prop_collection):
+            for item in coll:
+                refresh_drivers(item)
 
 
 #=============================================

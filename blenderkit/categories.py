@@ -81,11 +81,38 @@ def get_category_path(categories, category):
                 slug = ch['slug']
                 while parents.get(slug):
                     slug = parents.get(slug)
-
                     category_path.insert(0, slug)
                 return category_path
             check_categories.append(ch)
+    return category_path
 
+def get_category_name_path(categories, category):
+    '''finds the category in all possible subcategories and returns the path to it'''
+    category_path = []
+    check_categories = categories[:]
+    parents = {}
+    # utils.pprint(categories)
+    while len(check_categories) > 0:
+        ccheck = check_categories.pop()
+        #        print(ccheck['name'])
+        if not ccheck.get('children'):
+            continue
+
+        for ch in ccheck['children']:
+            #                print(ch['name'])
+            parents[ch['slug']] = ccheck
+
+            if ch['slug'] == category:
+                category_path = [ch['name']]
+                slug = ch['slug']
+                while parents.get(slug):
+                    parent = parents.get(slug)
+                    slug = parent['slug']
+
+                    category_path.insert(0, parent['name'])
+                return category_path
+            check_categories.append(ch)
+    return category_path
 
 def get_category(categories, cat_path=()):
     for category in cat_path:
@@ -124,7 +151,7 @@ def update_subcategory_enums(self, context):
 
 def get_category_enums(self, context):
     wm = bpy.context.window_manager
-    props = bpy.context.scene.blenderkitUI
+    props = bpy.context.window_manager.blenderkitUI
     asset_type = props.asset_type.lower()
     # asset_type = self.asset_type#get_upload_asset_type(self)
     asset_categories = get_category(wm['bkit_categories'], cat_path=(asset_type,))
@@ -138,7 +165,7 @@ def get_category_enums(self, context):
 
 def get_subcategory_enums(self, context):
     wm = bpy.context.window_manager
-    props = bpy.context.scene.blenderkitUI
+    props = bpy.context.window_manager.blenderkitUI
     asset_type = props.asset_type.lower()
     items = []
     if self.category != '':
@@ -153,7 +180,7 @@ def get_subcategory_enums(self, context):
 
 def get_subcategory1_enums(self, context):
     wm = bpy.context.window_manager
-    props = bpy.context.scene.blenderkitUI
+    props = bpy.context.window_manager.blenderkitUI
     asset_type = props.asset_type.lower()
     items = []
     if self.category != '' and self.subcategory != '':

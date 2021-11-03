@@ -22,7 +22,7 @@ import bpy
 import math
 import collections
 
-from itertools import tee, chain, islice, repeat
+from itertools import tee, chain, islice, repeat, permutations
 from mathutils import Vector, Matrix, Color
 from rna_prop_ui import rna_idprop_value_to_python
 
@@ -30,6 +30,28 @@ from rna_prop_ui import rna_idprop_value_to_python
 #=============================================
 # Math
 #=============================================
+
+
+axis_vectors = {
+    'x': (1,0,0),
+    'y': (0,1,0),
+    'z': (0,0,1),
+    '-x': (-1,0,0),
+    '-y': (0,-1,0),
+    '-z': (0,0,-1),
+}
+
+
+# Matrices that reshuffle axis order and/or invert them
+shuffle_matrix = {
+    sx+x+sy+y+sz+z: Matrix((
+        axis_vectors[sx+x], axis_vectors[sy+y], axis_vectors[sz+z]
+        )).transposed().freeze()
+    for x, y, z in permutations(['x', 'y', 'z'])
+    for sx in ('', '-')
+    for sy in ('', '-')
+    for sz in ('', '-')
+}
 
 
 def angle_on_plane(plane, vec1, vec2):
@@ -153,15 +175,58 @@ def map_apply(func, *inputs):
 
 
 #=============================================
-# Misc
+# Lazy references
 #=============================================
 
 
 def force_lazy(value):
+    """If the argument is callable, invokes it without arguments. Otherwise returns the argument as is."""
     if callable(value):
         return value()
     else:
         return value
+
+
+class LazyRef:
+    """Hashable lazy reference. When called, evaluates (foo, 'a', 'b'...) as foo('a','b')
+    if foo is callable. Otherwise the remaining arguments are used as attribute names or
+    keys, like foo.a.b or foo.a[b] etc."""
+
+    def __init__(self, first, *args):
+        self.first = first
+        self.args = tuple(args)
+        self.first_hashable = first.__hash__ is not None
+
+    def __repr__(self):
+        return 'LazyRef{}'.format(tuple(self.first, *self.args))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, LazyRef) and
+            (self.first == other.first if self.first_hashable else self.first is other.first) and
+            self.args == other.args
+        )
+
+    def __hash__(self):
+        return (hash(self.first) if self.first_hashable else hash(id(self.first))) ^ hash(self.args)
+
+    def __call__(self):
+        first = self.first
+        if callable(first):
+            return first(*self.args)
+
+        for item in self.args:
+            if isinstance(first, (dict, list)):
+                first = first[item]
+            else:
+                first = getattr(first, item)
+
+        return first
+
+
+#=============================================
+# Misc
+#=============================================
 
 
 def copy_attributes(a, b):

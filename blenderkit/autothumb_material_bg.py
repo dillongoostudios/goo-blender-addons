@@ -50,6 +50,10 @@ if __name__ == "__main__":
         if data.get('do_download'):
             #need to save the file, so that asset doesn't get downloaded into addon directory
             temp_blend_path = os.path.join(data['tempdir'], 'temp.blend')
+
+            # if this isn't here, blender crashes.
+            bpy.context.preferences.filepaths.file_preview_type = 'NONE'
+
             bpy.ops.wm.save_as_mainfile(filepath=temp_blend_path)
 
             asset_data = data['asset_data']
@@ -82,16 +86,23 @@ if __name__ == "__main__":
             bpy.data.materials["bg checker colorable"].node_tree.nodes['input_level'].outputs['Value'].default_value \
                 = data['thumbnail_background_lightness']
         tscale = data["thumbnail_scale"]
-        bpy.context.view_layer.objects['scaler'].scale = (tscale, tscale, tscale)
+        scaler = bpy.context.view_layer.objects['scaler']
+        scaler.scale = (tscale, tscale, tscale)
+        utils.activate(scaler)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
         bpy.context.view_layer.update()
 
         for ob in bpy.context.visible_objects:
             if ob.name[:15] == 'MaterialPreview':
+                utils.activate(ob)
+                bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
                 ob.material_slots[0].material = mat
                 ob.data.use_auto_texspace = False
-                ob.data.texspace_size.x = 1 / tscale
-                ob.data.texspace_size.y = 1 / tscale
-                ob.data.texspace_size.z = 1 / tscale
+                ob.data.texspace_size.x = 1 #/ tscale
+                ob.data.texspace_size.y = 1 #/ tscale
+                ob.data.texspace_size.z = 1 #/ tscale
                 if data["adaptive_subdivision"] == True:
                     ob.cycles.use_adaptive_subdivision = True
 
@@ -130,6 +141,8 @@ if __name__ == "__main__":
 
         bpy.context.scene.render.filepath = data['thumbnail_path']
         bg_blender.progress('rendering thumbnail')
+        # bpy.ops.wm.save_as_mainfile(filepath='C:/tmp/test.blend')
+        # fal
         render_thumbnails()
         if data.get('upload_after_render') and data.get('asset_data'):
             bg_blender.progress('uploading thumbnail')

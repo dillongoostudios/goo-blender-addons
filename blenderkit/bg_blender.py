@@ -108,11 +108,14 @@ def bg_update():
     '''monitoring of background process'''
     text = ''
     #utils.p('timer search')
+    # utils.p('start bg_blender timer bg_update')
 
     s = bpy.context.scene
 
     global bg_processes
     if len(bg_processes) == 0:
+        # utils.p('end bg_blender timer bg_update')
+
         return 2
     #cleanup dead processes first
     remove_processes = []
@@ -156,7 +159,11 @@ def bg_update():
     # if len(bg_processes) == 0:
     #     bpy.app.timers.unregister(bg_update)
     if len(bg_processes) > 0:
+        # utils.p('end bg_blender timer bg_update')
+
         return .3
+    # utils.p('end bg_blender timer bg_update')
+
     return 1.
 
 
@@ -225,7 +232,7 @@ class KillBgProcess(bpy.types.Operator):
                     if source.name == bpy.context.scene.name:
                         kill = True
                 if source.bl_rna.name == 'Image' and self.process_source == 'HDR':
-                    ui_props = bpy.context.scene.blenderkitUI
+                    ui_props = bpy.context.window_manager.blenderkitUI
                     if source.name == ui_props.hdr_upload_image.name:
                         kill = False
 
@@ -261,7 +268,7 @@ def add_bg_process(location=None, name=None, eval_path_computing='', eval_path_s
 def register():
     bpy.utils.register_class(KillBgProcess)
     user_preferences = bpy.context.preferences.addons['blenderkit'].preferences
-    if user_preferences.use_timers:
+    if user_preferences.use_timers and not bpy.app.background:
         bpy.app.timers.register(bg_update)
 
 

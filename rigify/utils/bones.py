@@ -21,7 +21,6 @@
 import bpy
 import math
 from mathutils import Vector, Matrix, Color
-from rna_prop_ui import rna_idprop_ui_prop_get
 
 from .errors import MetarigError
 from .naming import get_name, make_derived_name, is_control_bone
@@ -159,8 +158,8 @@ def copy_bone(obj, bone_name, assign_name='', *, parent=False, inherit_scale=Fal
             for name in ['bbone_segments',
                          'bbone_easein', 'bbone_easeout',
                          'bbone_rollin', 'bbone_rollout',
-                         'bbone_curveinx', 'bbone_curveiny', 'bbone_curveoutx', 'bbone_curveouty',
-                         'bbone_scaleinx', 'bbone_scaleiny', 'bbone_scaleoutx', 'bbone_scaleouty']:
+                         'bbone_curveinx', 'bbone_curveinz', 'bbone_curveoutx', 'bbone_curveoutz',
+                         'bbone_scalein', 'bbone_scaleout']:
                 setattr(edit_bone_2, name, getattr(edit_bone_1, name))
 
         # Resize the bone after copy if requested
@@ -682,4 +681,4 @@ def set_bone_widget_transform(obj, bone_name, transform_bone, use_size=True, sca
         bone.custom_shape_transform = None
 
     bone.use_custom_shape_bone_size = use_size
-    bone.custom_shape_scale = scale
+    bone.custom_shape_scale_xyz = (scale, scale, scale)

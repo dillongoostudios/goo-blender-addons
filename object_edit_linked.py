@@ -20,10 +20,10 @@
 bl_info = {
     "name": "Edit Linked Library",
     "author": "Jason van Gumster (Fweeb), Bassam Kurdali, Pablo Vazquez, Rainer Trummer",
-    "version": (0, 9, 1),
+    "version": (0, 9, 2),
     "blender": (2, 80, 0),
-    "location": "File > External Data / View3D > Sidebar > Item Tab",
-    "description": "Allows editing of objects linked from a .blend library.",
+    "location": "File > External Data / View3D > Sidebar > Item Tab / Node Editor > Sidebar > Node Tab",
+    "description": "Allows editing of objects, collections, and node groups linked from a .blend library.",
     "doc_url": "{BLENDER_MANUAL_URL}/addons/object/edit_linked_library.html",
     "category": "Object",
 }
@@ -40,6 +40,7 @@ settings = {
     "original_file": "",
     "linked_file": "",
     "linked_objects": [],
+    "linked_nodes": []
     }
 
 
@@ -82,7 +83,9 @@ class OBJECT_OT_EditLinked(bpy.types.Operator):
                 context.active_object.instance_collection.library is not None) or
                 (context.active_object.proxy and
                 context.active_object.proxy.library is not None) or
-                context.active_object.library is not None)
+                context.active_object.library is not None or
+                (context.active_object.override_library and
+                context.active_object.override_library.reference.library is not None))
 
     def execute(self, context: bpy.context):
         target = context.active_object
@@ -97,6 +100,10 @@ class OBJECT_OT_EditLinked(bpy.types.Operator):
             target = target.proxy
             targetpath = target.library.filepath
             settings["linked_objects"].append(target.name)
+        elif target.override_library:
+            target = target.override_library.reference
+            targetpath = target.library.filepath
+            settings["linked_objects"].append(target.name)
 
         if targetpath:
             logger.debug(target.name + " is linked to " + targetpath)
@@ -109,7 +116,74 @@ class OBJECT_OT_EditLinked(bpy.types.Operator):
                 bpy.ops.wm.save_mainfile()
 
             settings["original_file"] = bpy.data.filepath
-            settings["linked_file"] = bpy.path.abspath(targetpath)
+            # Using both bpy and os abspath functions because Windows doesn't like relative routes as part of an absolute path
+            settings["linked_file"] = os.path.abspath(bpy.path.abspath(targetpath))
+
+            if self.use_instance:
+                import subprocess
+                try:
+                    subprocess.Popen([bpy.app.binary_path, settings["linked_file"]])
+                except:
+                    logger.error("Error on the new Blender instance")
+                    import traceback
+                    logger.error(traceback.print_exc())
+            else:
+                bpy.ops.wm.open_mainfile(filepath=settings["linked_file"])
+
+            logger.info("Opened linked file!")
+        else:
+            self.report({'WARNING'}, target.name + " is not linked")
+            logger.warning(target.name + " is not linked")
+
+        return {'FINISHED'}
+
+
+class NODE_OT_EditLinked(bpy.types.Operator):
+    """Edit Linked Library"""
+    bl_idname = "node.edit_linked"
+    bl_label = "Edit Linked Library"
+
+    use_autosave: bpy.props.BoolProperty(
+            name="Autosave",
+            description="Save the current file before opening the linked library",
+            default=True)
+    use_instance: bpy.props.BoolProperty(
+            name="New Blender Instance",
+            description="Open in a new Blender instance",
+            default=False)
+
+    @classmethod
+    def poll(cls, context: bpy.context):
+        return settings["original_file"] == "" and context.active_node is not None and (
+                (context.active_node.type == 'GROUP' and
+                hasattr(context.active_node.node_tree, "library") and
+                context.active_node.node_tree.library is not None) or
+                (hasattr(context.active_node, "monad") and
+                context.active_node.monad.library is not None))
+
+    def execute(self, context: bpy.context):
+        target = context.active_node
+        if (target.type == "GROUP"):
+            target = target.node_tree
+        else:
+            target = target.monad
+
+        targetpath = target.library.filepath
+        settings["linked_nodes"].append(target.name)
+
+        if targetpath:
+            logger.debug(target.name + " is linked to " + targetpath)
+
+            if self.use_autosave:
+                if not bpy.data.filepath:
+                    # File is not saved on disk, better to abort!
+                    self.report({'ERROR'}, "Current file does not exist on disk, we cannot autosave it, aborting")
+                    return {'CANCELLED'}
+                bpy.ops.wm.save_mainfile()
+
+            settings["original_file"] = bpy.data.filepath
+            # Using both bpy and os abspath functions because Windows doesn't like relative routes as part of an absolute path
+            settings["linked_file"] = os.path.abspath(bpy.path.abspath(targetpath))
 
             if self.use_instance:
                 import subprocess
@@ -169,16 +243,17 @@ class VIEW3D_PT_PanelLinkedEdit(bpy.types.Panel):
         return (context.active_object is not None) or (settings["original_file"] != "")
 
     def draw_common(self, scene, layout, props):
-        props.use_autosave = scene.use_autosave
-        props.use_instance = scene.use_instance
+        if props is not None:
+            props.use_autosave = scene.use_autosave
+            props.use_instance = scene.use_instance
 
-        layout.prop(scene, "use_autosave")
-#        layout.prop(scene, "use_instance")
+            layout.prop(scene, "use_autosave")
+            layout.prop(scene, "use_instance")
 
     def draw(self, context: bpy.context):
         scene = context.scene
         layout = self.layout
-        layout.use_property_split = True
+        layout.use_property_split = False
         layout.use_property_decorate = False
         icon = "OUTLINER_DATA_" + context.active_object.type.replace("LIGHT_PROBE", "LIGHTPROBE")
 
@@ -192,23 +267,31 @@ class VIEW3D_PT_PanelLinkedEdit(bpy.types.Panel):
         if settings["original_file"] == "" and (
                 (target and
                 target.library is not None) or
-                context.active_object.library is not None):
+                context.active_object.library is not None or
+                (context.active_object.override_library is not None and
+                context.active_object.override_library.reference is not None)):
 
             if (target is not None):
                 props = layout.operator("object.edit_linked", icon="LINK_BLEND",
                                         text="Edit Library: %s" % target.name)
-            else:
+            elif (context.active_object.library):
                 props = layout.operator("object.edit_linked", icon="LINK_BLEND",
                                         text="Edit Library: %s" % context.active_object.name)
+            else:
+                props = layout.operator("object.edit_linked", icon="LINK_BLEND",
+                                        text="Edit Override Library: %s" % context.active_object.override_library.reference.name)
 
             self.draw_common(scene, layout, props)
 
             if (target is not None):
                 layout.label(text="Path: %s" %
                             target.library.filepath)
-            else:
+            elif (context.active_object.library):
                 layout.label(text="Path: %s" %
                             context.active_object.library.filepath)
+            else:
+                layout.label(text="Path: %s" %
+                            context.active_object.override_library.reference.library.filepath)
 
         elif settings["original_file"] != "":
 
@@ -222,13 +305,17 @@ class VIEW3D_PT_PanelLinkedEdit(bpy.types.Panel):
                 # XXX - This is for nested linked assets... but it only works
                 # when launching a new Blender instance. Nested links don't
                 # currently work when using a single instance of Blender.
-                props = layout.operator("object.edit_linked",
-                                        text="Edit Library: %s" % context.active_object.instance_collection.name,
-                                        icon="LINK_BLEND")
+                if context.active_object.instance_collection is not None:
+                    props = layout.operator("object.edit_linked",
+                            text="Edit Library: %s" % context.active_object.instance_collection.name,
+                            icon="LINK_BLEND")
+                else:
+                    props = None
 
                 self.draw_common(scene, layout, props)
 
-                layout.label(text="Path: %s" %
+                if context.active_object.instance_collection is not None:
+                    layout.label(text="Path: %s" %
                             context.active_object.instance_collection.library.filepath)
 
             else:
@@ -240,6 +327,82 @@ class VIEW3D_PT_PanelLinkedEdit(bpy.types.Panel):
         else:
             layout.label(text="%s is not linked" % context.active_object.name,
                         icon=icon)
+
+
+class NODE_PT_PanelLinkedEdit(bpy.types.Panel):
+    bl_label = "Edit Linked Library"
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    if bpy.app.version >= (2, 93, 0):
+        bl_category = "Node"
+    else:
+        bl_category = "Item"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_node is not None
+
+    def draw_common(self, scene, layout, props):
+        if props is not None:
+            props.use_autosave = scene.use_autosave
+            props.use_instance = scene.use_instance
+
+            layout.prop(scene, "use_autosave")
+            layout.prop(scene, "use_instance")
+
+    def draw(self, context):
+        scene = context.scene
+        layout = self.layout
+        layout.use_property_split = False
+        layout.use_property_decorate = False
+        icon = 'NODETREE'
+
+        target = context.active_node
+
+        if settings["original_file"] == "" and (
+                (target.type == 'GROUP' and hasattr(target.node_tree, "library") and
+                target.node_tree.library is not None) or
+                (hasattr(target, "monad") and target.monad.library is not None)):
+
+            if (target.type == "GROUP"):
+                props = layout.operator("node.edit_linked", icon="LINK_BLEND",
+                                        text="Edit Library: %s" % target.name)
+            else:
+                props = layout.operator("node.edit_linked", icon="LINK_BLEND",
+                                        text="Edit Library: %s" % target.monad.name)
+
+            self.draw_common(scene, layout, props)
+
+            if (target.type == "GROUP"):
+                layout.label(text="Path: %s" % target.node_tree.library.filepath)
+            else:
+                layout.label(text="Path: %s" % target.monad.library.filepath)
+
+        elif settings["original_file"] != "":
+
+            if scene.use_instance:
+                layout.operator("wm.return_to_original",
+                                text="Reload Current File",
+                                icon="FILE_REFRESH").use_autosave = False
+
+                layout.separator()
+
+                props = None
+
+                self.draw_common(scene, layout, props)
+
+                #layout.label(text="Path: %s" %
+                #            context.active_object.instance_collection.library.filepath)
+
+            else:
+                props = layout.operator("wm.return_to_original", icon="LOOP_BACK")
+                props.use_autosave = scene.use_autosave
+
+                layout.prop(scene, "use_autosave")
+
+        else:
+            layout.label(text="%s is not linked" % target.name, icon=icon)
 
 
 class TOPBAR_MT_edit_linked_submenu(bpy.types.Menu):
@@ -254,8 +417,10 @@ class TOPBAR_MT_edit_linked_submenu(bpy.types.Menu):
 addon_keymaps = []
 classes = (
     OBJECT_OT_EditLinked,
+    NODE_OT_EditLinked,
     WM_OT_ReturnToOriginal,
     VIEW3D_PT_PanelLinkedEdit,
+    NODE_PT_PanelLinkedEdit,
     TOPBAR_MT_edit_linked_submenu
     )
 
