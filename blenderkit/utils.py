@@ -28,6 +28,7 @@ import shutil
 import logging
 import traceback
 import inspect
+import datetime
 
 bk_logger = logging.getLogger('blenderkit')
 
@@ -843,7 +844,6 @@ def asset_from_newer_blender_version(asset_data):
     '''checks if asset is from a newer blender version, to avoid incompatibility'''
     bver = bpy.app.version
     aver = asset_data['sourceAppVersion'].split('.')
-    #print(aver,bver)
     bver_f = bver[0] + bver[1] * .01 + bver[2] * .0001
     if len(aver)>=3:
         aver_f = int(aver[0]) + int(aver[1]) * .01 + int(aver[2]) * .0001
@@ -913,7 +913,7 @@ def get_fake_context(context, area_type='VIEW_3D'):
 # def is_url(text):
 
 
-def label_multiline(layout, text='', icon='NONE', width=-1, max_lines=10):
+def label_multiline(layout, text='', icon='NONE', width=-1, max_lines=10, split_last = 0):
     '''
      draw a ui label, but try to split it in multiple lines.
 
@@ -958,12 +958,29 @@ def label_multiline(layout, text='', icon='NONE', width=-1, max_lines=10):
         if li > max_lines:
             break;
         row = layout.row()
+        if split_last > 0:
+            row = row.split(factor=split_last)
         row.label(text=l, icon=icon)
         rows.append(row)
         icon = 'NONE'
     # if li > max_lines:
     return rows
 
+
+def is_upload_old(asset_data):
+    '''
+    estimates if the asset is far too long in the 'uploaded' state
+    This returns the number of days the validation is over the limit.
+    '''
+    date_time_str = asset_data["created"][:10]
+    # date_time_str = 'Jun 28 2018 7:40AM'
+    date_time_obj = datetime.datetime.strptime(date_time_str, '%Y-%m-%d')
+    today = date_time_obj.today()
+    age = today - date_time_obj
+    old = datetime.timedelta(days=5)
+    if age > old:
+        return (age.days - old.days)
+    return 0
 
 def trace():
     traceback.print_stack()
