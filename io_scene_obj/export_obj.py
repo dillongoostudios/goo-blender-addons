@@ -74,9 +74,10 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                 use_transparency = mat_wrap.alpha != 1.0
 
                 # XXX Totally empirical conversion, trying to adapt it
-                #     (from 1.0 - 0.0 Principled BSDF range to 0.0 - 900.0 OBJ specular exponent range)...
-                spec = (1.0 - mat_wrap.roughness) * 30
-                spec *= spec
+                #     (from 1.0 - 0.0 Principled BSDF range to 0.0 - 1000.0 OBJ specular exponent range):
+                #         (1.0 - bsdf_roughness)^2 * 1000
+                spec = (1.0 - mat_wrap.roughness)
+                spec *= spec * 1000
                 fw('Ns %.6f\n' % spec)
 
                 # Ambient
@@ -256,7 +257,7 @@ def write_file(filepath, objects, depsgraph, scene,
                ):
     """
     Basic write function. The context and options must be already set
-    This can be accessed externaly
+    This can be accessed externally
     eg.
     write( 'c:\\test\\foobar.obj', Blender.Object.GetSelected() ) # Using default options.
     """

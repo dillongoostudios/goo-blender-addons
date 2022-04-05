@@ -20,7 +20,7 @@
 
 bl_info = {
     "name": "Rigify",
-    "version": (0, 6, 4),
+    "version": (0, 6, 5),
     "author": "Nathan Vegdahl, Lucio Rossi, Ivan Cappiello, Alexander Gavrilov",
     "blender": (3, 0, 0),
     "description": "Automatic rigging from building-block components",
@@ -149,6 +149,33 @@ class RigifyFeatureSets(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty()
     module_name: bpy.props.StringProperty()
 
+    def toggle_featureset(self, context):
+        feature_set_list.call_register_function(self.module_name, self.enabled)
+        context.preferences.addons[__package__].preferences.update_external_rigs()
+
+    enabled: bpy.props.BoolProperty(
+        name = "Enabled", 
+        description = "Whether this feature-set is registered or not",
+        update = toggle_featureset,
+        default = True
+    )
+
+
+class RIGIFY_UL_FeatureSets(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        rigify_prefs = data
+        feature_sets = rigify_prefs.rigify_feature_sets
+        active_set = feature_sets[rigify_prefs.active_feature_set_index]
+        feature_set_entry = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row()
+            row.prop(feature_set_entry, 'name', text="", emboss=False)
+
+            icon = 'CHECKBOX_HLT' if feature_set_entry.enabled else 'CHECKBOX_DEHLT'
+            row.enabled = feature_set_entry.enabled
+            layout.prop(feature_set_entry, 'enabled', text="", icon=icon, emboss=False)
+        elif self.layout_type in {'GRID'}:
+            pass
 
 class RigifyPreferences(AddonPreferences):
     # this must match the addon name, use '__package__'
@@ -157,32 +184,50 @@ class RigifyPreferences(AddonPreferences):
 
     def register_feature_sets(self, register):
         """Call register or unregister of external feature sets"""
-        for set_name in feature_set_list.get_installed_list():
+        for set_name in feature_set_list.get_enabled_modules_names():
             feature_set_list.call_register_function(set_name, register)
 
-    def update_external_rigs(self, force=False):
+    def refresh_installed_feature_sets(self):
+        """Synchronize preferences entries with what's actually in the file system."""
+        feature_set_prefs = self.rigify_feature_sets
+
+        module_names = feature_set_list.get_installed_modules_names()
+
+        # If there is a feature set preferences entry with no corresponding 
+        # installed module, user must've manually removed it from the filesystem,
+        # so let's remove such entries.
+        to_delete = [ i for i, fs in enumerate(feature_set_prefs) if fs.module_name not in module_names ]
+        for i in reversed(to_delete):
+            feature_set_prefs.remove(i)
+
+        # If there is an installed feature set in the file system but no corresponding
+        # entry, user must've installed it manually. Make sure it has an entry.
+        for module_name in module_names:
+            for fs in feature_set_prefs:
+                if module_name == fs.module_name:
+                    break
+            else:
+                fs = feature_set_prefs.add()
+                fs.name = feature_set_list.get_ui_name(module_name)
+                fs.module_name = module_name
+
+    def update_external_rigs(self):
         """Get external feature sets"""
-        set_list = feature_set_list.get_installed_list()
 
-        # Update feature set list
-        self.rigify_feature_sets.clear()
+        self.refresh_installed_feature_sets()
 
-        for s in set_list:
-            list_entry = self.rigify_feature_sets.add()
-            list_entry.name = feature_set_list.get_ui_name(s)
-            list_entry.module_name = s
+        set_list = feature_set_list.get_enabled_modules_names()
 
-        if force or len(set_list) > 0:
-            # Reload rigs
-            print('Reloading external rigs...')
-            rig_lists.get_external_rigs(set_list)
+        # Reload rigs
+        print('Reloading external rigs...')
+        rig_lists.get_external_rigs(set_list)
 
-            # Reload metarigs
-            print('Reloading external metarigs...')
-            metarig_menu.get_external_metarigs(set_list)
+        # Reload metarigs
+        print('Reloading external metarigs...')
+        metarig_menu.get_external_metarigs(set_list)
 
-            # Re-register rig parameters
-            register_rig_parameters()
+        # Re-register rig parameters
+        register_rig_parameters()
 
     rigify_feature_sets: bpy.props.CollectionProperty(type=RigifyFeatureSets)
     active_feature_set_index: IntProperty()
@@ -196,8 +241,8 @@ class RigifyPreferences(AddonPreferences):
 
         row = layout.row()
         row.template_list(
-            "UI_UL_list",
-            "rigify_feature_sets",
+            'RIGIFY_UL_FeatureSets',
+            '',
             self, "rigify_feature_sets",
             self, 'active_feature_set_index'
         )
@@ -259,8 +304,7 @@ def draw_feature_set_prefs(layout, context, featureset: RigifyFeatureSets):
         op = row.operator('wm.url_open', text="Report a Bug", icon='URL')
         op.url = info['tracker_url']
 
-    op = row.operator("wm.rigify_remove_feature_set", text="Remove", icon='CANCEL')
-    op.featureset = featureset.module_name
+    row.operator("wm.rigify_remove_feature_set", text="Remove", icon='CANCEL')
 
 
 class RigifyName(bpy.types.PropertyGroup):
@@ -443,6 +487,7 @@ classes = (
     RigifyColorSet,
     RigifySelectionColors,
     RigifyArmatureLayer,
+    RIGIFY_UL_FeatureSets,
     RigifyFeatureSets,
     RigifyPreferences,
 )
@@ -512,20 +557,6 @@ def register():
     IDStore.rigify_types = CollectionProperty(type=RigifyName)
     IDStore.rigify_active_type = IntProperty(name="Rigify Active Type", description="The selected rig type")
 
-    bpy.types.Armature.rigify_advanced_generation = BoolProperty(name="Advanced Options",
-        description="Enables/disables advanced options for Rigify rig generation",
-        default=False)
-
-    def update_mode(self, context):
-        if self.rigify_generate_mode == 'new':
-            self.rigify_force_widget_update = False
-
-    bpy.types.Armature.rigify_generate_mode = EnumProperty(name="Rigify Generate Rig Mode",
-        description="'Generate Rig' mode. In 'overwrite' mode the features of the target rig will be updated as defined by the metarig. In 'new' mode a new rig will be created as defined by the metarig. Current mode",
-        update=update_mode,
-        items=( ('overwrite', 'overwrite', ''),
-                ('new', 'new', '')))
-
     bpy.types.Armature.rigify_force_widget_update = BoolProperty(name="Force Widget Update",
         description="Forces Rigify to delete and rebuild all the rig widgets. if unset, only missing widgets will be created",
         default=False)
@@ -533,6 +564,9 @@ def register():
     bpy.types.Armature.rigify_mirror_widgets = BoolProperty(name="Mirror Widgets",
         description="Make widgets for left and right side bones linked duplicates with negative X scale for the right side, based on bone name symmetry",
         default=True)
+    bpy.types.Armature.rigify_widgets_collection = PointerProperty(type=bpy.types.Collection,
+        name="Widgets Collection",
+        description="Defines which collection to place widget objects in. If unset, a new one will be created based on the name of the rig")
 
     bpy.types.Armature.rigify_target_rig = PointerProperty(type=bpy.types.Object,
         name="Rigify Target Rig",
@@ -546,11 +580,6 @@ def register():
     bpy.types.Armature.rigify_finalize_script = PointerProperty(type=bpy.types.Text,
         name="Finalize Script",
         description="Run this script after generation to apply user-specific changes")
-
-    bpy.types.Armature.rigify_rig_basename = StringProperty(name="Rigify Rig Name",
-        description="Defines the name of the Rig. If unset, in 'new' mode 'rig' will be used, in 'overwrite' mode the target rig name will be used",
-        default="")
-
     IDStore.rigify_transfer_only_selected = BoolProperty(
         name="Transfer Only Selected",
         description="Transfer selected bones only", default=True)
@@ -592,12 +621,9 @@ def unregister():
     del ArmStore.rigify_colors_index
     del ArmStore.rigify_colors_lock
     del ArmStore.rigify_theme_to_add
-    del ArmStore.rigify_advanced_generation
-    del ArmStore.rigify_generate_mode
     del ArmStore.rigify_force_widget_update
     del ArmStore.rigify_target_rig
     del ArmStore.rigify_rig_ui
-    del ArmStore.rigify_rig_basename
 
     IDStore = bpy.types.WindowManager
     del IDStore.rigify_collection

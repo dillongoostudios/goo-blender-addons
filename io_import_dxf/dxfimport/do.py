@@ -189,7 +189,7 @@ class Do:
     # type(self, dxf entity, blender curve data)
 
     def _cubic_bezier_closed(self, ptuple, curve):
-        count = (len(ptuple)-1)/3
+        count = int((len(ptuple) - 1) / 3)
         points = [ptuple[-2]]
         ptuples = ptuple[:-2]
         points += [p for p in ptuples]
@@ -204,7 +204,7 @@ class Do:
             b[i].handle_right = self.proj(points[j + 1])
 
     def _cubic_bezier_open(self, points, curve):
-        count = (len(points) - 1) / 3 + 1
+        count = int((len(points) - 1) / 3 + 1)
         spl = curve.splines.new('BEZIER')
         b = spl.bezier_points
         b.add(count - 1)
@@ -1637,7 +1637,7 @@ class Do:
         if type(self.pScene) is TransverseMercator:
             scene['SRID'] = "tmerc"
         elif self.pScene is not None:  # assume Proj
-            scene['SRID'] = re.findall("\+init=(.+)\s", self.pScene.srs)[0]
+            scene['SRID'] = re.findall(r"\+init=(.+)\s", self.pScene.srs)[0]
 
         #bpy.context.screen.scene = scene
 

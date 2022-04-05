@@ -130,6 +130,11 @@ def convert_pose_matrix_via_rest_delta(mat, from_bone, to_bone):
     return mat @ from_bone.bone.matrix_local.inverted() @ to_bone.bone.matrix_local
 
 
+def convert_pose_matrix_via_pose_delta(mat, from_bone, to_bone):
+    """Convert pose of one bone to another bone, preserving the current pose difference between them."""
+    return mat @ from_bone.matrix.inverted() @ to_bone.matrix
+
+
 def get_local_pose_matrix(pose_bone):
     """ Returns the local transform matrix of the given pose bone.
     """
@@ -1167,27 +1172,13 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
             layer_layout += [(l.name, l.row)]
 
         # Generate the UI script
-        if metarig.data.rigify_rig_basename:
-            rig_ui_name = metarig.data.rigify_rig_basename + '_ui.py'
+        script = metarig.data.rigify_rig_ui
+
+        if script:
+            script.clear()
         else:
-            rig_ui_name = 'rig_ui.py'
-
-        script = None
-
-        if metarig.data.rigify_generate_mode == 'overwrite':
-            script = metarig.data.rigify_rig_ui
-
-            if not script and rig_ui_name in bpy.data.texts:
-                script = bpy.data.texts[rig_ui_name]
-
-            if script:
-                script.clear()
-                script.name = rig_ui_name
-
-        if script is None:
-            script = bpy.data.texts.new(rig_ui_name)
-
-        metarig.data.rigify_rig_ui = script
+            script = bpy.data.texts.new("rig_ui.py")
+            metarig.data.rigify_rig_ui = script
 
         for s in OrderedDict.fromkeys(self.ui_imports):
             script.write(s + "\n")

@@ -23,7 +23,7 @@ bl_info = {
     "version": (1, 2),
     "blender": (2, 83, 0),
     "location": "View 3D > Properties Panel",
-    "doc_url": "https://github.com/marcopavanello/real-snow",
+    "doc_url": "{BLENDER_MANUAL_URL}/addons/object/real_snow.html",
     "tracker_url": "https://github.com/marcopavanello/real-snow/issues",
     "support": "COMMUNITY",
     "category": "Object",
@@ -238,13 +238,13 @@ def add_material(obj: bpy.types.Object):
     mat_name = "Snow"
     # If material doesn't exist, create it
     if mat_name in bpy.data.materials:
-	    bpy.data.materials[mat_name].name = mat_name+".001"
+        bpy.data.materials[mat_name].name = mat_name+".001"
     mat = bpy.data.materials.new(mat_name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
     # Delete all nodes
     for node in nodes:
-	    nodes.remove(node)
+        nodes.remove(node)
     # Add nodes
     output = nodes.new('ShaderNodeOutputMaterial')
     principled = nodes.new('ShaderNodeBsdfPrincipled')

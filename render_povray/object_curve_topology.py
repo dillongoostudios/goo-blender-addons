@@ -30,15 +30,22 @@ from .shading import write_object_material_interior
 # -------- LOFT, ETC.
 
 
-def export_curves(file, ob, string_strip_hyphen, global_matrix, tab_write):
-    """write all curves based POV primitives to exported file """
-    # name_orig = "OB" + ob.name # XXX Unused, check instanciation
+def export_curves(file, ob, string_strip_hyphen, tab_write):
+    """write all curves based POV primitives to exported file
+
+    Args:
+        file: The POV file being written
+        ob: The current curve object to export from Blender
+        string_strip_hyphen: Function to clean up names
+        tab_write: Function to write to POV file
+    """
+    # name_orig = "OB" + ob.name # XXX Unused, check instantiation
     dataname_orig = "DATA" + ob.data.name
 
-    # name = string_strip_hyphen(bpy.path.clean_name(name_orig)) # XXX Unused, check instanciation
+    # name = string_strip_hyphen(bpy.path.clean_name(name_orig)) # XXX Unused, check instantiation
     dataname = string_strip_hyphen(bpy.path.clean_name(dataname_orig))
 
-    # matrix = global_matrix @ ob.matrix_world # XXX Unused, check instanciation
+    # matrix = global_matrix @ ob.matrix_world # XXX Unused, check instantiation
     bezier_sweep = False
     if ob.pov.curveshape == 'sphere_sweep':
         # TODO: Check radius ; shorten lines, may use tab_write() ? > fstrings since py 2.9
@@ -174,7 +181,7 @@ def export_curves(file, ob, string_strip_hyphen, global_matrix, tab_write):
             tab_write('#declare %s%s=spline {\n' % (dataname, n))
             tab_write('cubic_spline\n')
             lp = len(spline.points)
-            delta = 1 / (lp)
+            delta = 1 / lp
             d = -delta
             point = spline.points[lp - 1]
             x, y, z, w = point.co[:]
@@ -196,8 +203,8 @@ def export_curves(file, ob, string_strip_hyphen, global_matrix, tab_write):
             tab_write('spline{%s%s},\n' % (dataname, n))
             for i in range(n):
                 tab_write('spline{%s%s},\n' % (dataname, (i + 1)))
-            tab_write('spline{%s1},\n' % (dataname))
-            tab_write('spline{%s2}\n' % (dataname))
+            tab_write('spline{%s1},\n' % dataname)
+            tab_write('spline{%s2}\n' % dataname)
             tab_write('}\n')
         # Use some of the Meshmaker.inc macro, here inlined
         file.write('#macro CheckFileName(FileName)\n')
@@ -796,7 +803,9 @@ def export_curves(file, ob, string_strip_hyphen, global_matrix, tab_write):
         tab_write("\n//dummy sphere to represent empty curve location\n")
         tab_write("#declare %s =\n" % dataname)
         tab_write(
-            "sphere {<%.6g, %.6g, %.6g>,0 pigment{rgbt 1} no_image no_reflection no_radiosity photons{pass_through collect off} hollow}\n\n"
+            "sphere {<%.6g, %.6g, %.6g>,0 pigment{rgbt 1} "
+            "no_image no_reflection no_radiosity "
+            "photons{pass_through collect off} hollow}\n\n"
             % (ob.location.x, ob.location.y, ob.location.z)
         )  # ob.name > povdataname)
     # And non empty curves
@@ -943,6 +952,7 @@ def export_curves(file, ob, string_strip_hyphen, global_matrix, tab_write):
                     )
                 tab_write("}\n")
             if len(ob.data.splines) == 1:
+                p = 1
                 tab_write('#declare %s = object{\n' % dataname)
                 tab_write(
                     '    Shape_Bezierpoints_Sphere_Sweep(yes,%s, %s_points_%s, %s_radii_%s) \n'
@@ -962,7 +972,7 @@ def export_curves(file, ob, string_strip_hyphen, global_matrix, tab_write):
         if ob.pov.curveshape in {'birail'}:
             splines = '%s1,%s2,%s3,%s4' % (dataname, dataname, dataname, dataname)
             tab_write('object {Coons(%s, %s, %s, "")\n' % (splines, ob.pov.res_u, ob.pov.res_v))
-        # pov_mat_name = "Default_texture" # XXX! Unused, check instanciation
+        # pov_mat_name = "Default_texture" # XXX! Unused, check instantiation
         if ob.active_material:
             # pov_mat_name = string_strip_hyphen(bpy.path.clean_name(ob.active_material.name))
             try:

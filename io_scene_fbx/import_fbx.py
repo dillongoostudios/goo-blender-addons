@@ -56,7 +56,7 @@ from .fbx_utils import (
 # global singleton, assign on execution
 fbx_elem_nil = None
 
-# Units convertors...
+# Units converters...
 convert_deg_to_rad_iter = units_convertor_iter("degree", "radian")
 
 MAT_CONVERT_BONE = fbx_utils.MAT_CONVERT_BONE.inverted()
@@ -764,7 +764,10 @@ def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_o
                 key = (as_uuid, al_uuid, id_data)
                 action = actions.get(key)
                 if action is None:
-                    action_name = "|".join((id_data.name, stack_name, layer_name))
+                    if stack_name == layer_name:
+                        action_name = "|".join((id_data.name, stack_name))
+                    else:
+                        action_name = "|".join((id_data.name, stack_name, layer_name))
                     actions[key] = action = bpy.data.actions.new(action_name)
                     action.use_fake_user = True
                 # If none yet assigned, assign this action to id_data.

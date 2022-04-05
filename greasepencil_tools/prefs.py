@@ -89,7 +89,7 @@ class GreasePencilAddonPrefs(bpy.types.AddonPreferences):
         name = "Use Hud",
         description = "Display angle lines and angle value as text on viewport",
         default = False)
-    
+
     canvas_use_view_center: BoolProperty(
         name = "Rotate From View Center In Camera",
         description = "Rotate from view center in camera view, Else rotate from camera center",
@@ -103,7 +103,7 @@ class GreasePencilAddonPrefs(bpy.types.AddonPreferences):
         update=auto_rebind)
 
     mouse_click : EnumProperty(
-        name="Mouse button", description="click on right/left/middle mouse button in combination with a modifier to trigger alignement",
+        name="Mouse button", description="click on right/left/middle mouse button in combination with a modifier to trigger alignment",
         default='MIDDLEMOUSE',
         items=(
             ('RIGHTMOUSE', 'Right click', 'Use click on Right mouse button', 'MOUSE_RMB', 0),
@@ -163,7 +163,7 @@ class GreasePencilAddonPrefs(bpy.types.AddonPreferences):
             box.label(text="Deformer type can be changed during modal with 'M' key, this is for default behavior", icon='INFO')
 
             box.prop(self, "auto_swap_deform_type")
-            box.label(text="Once 'M' is hit, auto swap is desactivated to stay in your chosen mode", icon='INFO')
+            box.label(text="Once 'M' is hit, auto swap is deactivated to stay in your chosen mode", icon='INFO')
 
             ## ROTATE CANVAS
             box = layout.box()
