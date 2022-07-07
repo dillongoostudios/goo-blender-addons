@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 from io_scene_gltf2.blender.exp import gltf2_blender_gather_texture_info
 from io_scene_gltf2.blender.exp import gltf2_blender_get
@@ -138,9 +127,10 @@ def gather_base_color_texture(info, export_settings):
         # because gather_image determines how to pack images based on the
         # names of sockets, and the names are hard-coded to a Principled
         # style graph.
-        return gltf2_blender_gather_texture_info.gather_texture_info(
+        unlit_texture, unlit_use_active_uvmap = gltf2_blender_gather_texture_info.gather_texture_info(
             sockets[0],
             sockets,
             export_settings,
         )
-    return None
+        return unlit_texture, ["unlitTexture"] if unlit_use_active_uvmap else None
+    return None, None

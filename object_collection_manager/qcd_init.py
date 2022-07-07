@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Copyright 2011, Ryan Inch
 
@@ -120,8 +104,8 @@ def register_qcd():
     if prefs.enable_qcd_view_edit_mode_hotkeys:
         register_qcd_view_edit_mode_hotkeys()
 
-    bpy.types.VIEW3D_HT_header.append(ui.view3d_header_qcd_slots)
-    bpy.types.TOPBAR_HT_upper_bar.append(ui.view_layer_update)
+    if prefs.enable_qcd_3dview_header_widget:
+        register_qcd_3dview_header_widget()
 
 
 def register_qcd_view_hotkeys():
@@ -263,10 +247,14 @@ def register_qcd_view_edit_mode_hotkeys():
         addon_qcd_view_edit_mode_hotkey_keymaps.append((km, kmi))
 
 
+def register_qcd_3dview_header_widget():
+    bpy.types.VIEW3D_HT_header.append(ui.view3d_header_qcd_slots)
+    bpy.types.TOPBAR_HT_upper_bar.append(ui.view_layer_update)
+
+
 
 def unregister_qcd():
-    bpy.types.VIEW3D_HT_header.remove(ui.view3d_header_qcd_slots)
-    bpy.types.TOPBAR_HT_upper_bar.remove(ui.view_layer_update)
+    unregister_qcd_3dview_header_widget()
 
     for cls in qcd_classes:
         bpy.utils.unregister_class(cls)
@@ -304,3 +292,8 @@ def unregister_qcd_view_edit_mode_hotkeys():
     for km, kmi in addon_qcd_view_edit_mode_hotkey_keymaps:
         km.keymap_items.remove(kmi)
     addon_qcd_view_edit_mode_hotkey_keymaps.clear()
+
+
+def unregister_qcd_3dview_header_widget():
+    bpy.types.VIEW3D_HT_header.remove(ui.view3d_header_qcd_slots)
+    bpy.types.TOPBAR_HT_upper_bar.remove(ui.view_layer_update)

@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -56,7 +40,7 @@ def update2_0_0_9():
     # XXX We could also store the new name, but as it is just the same without leading pov_ ...
     # Get default values of pov scene props.
     old_sce_props = {
-        k: getattr(bpy.types.Scene, k)[1].get('default', None)
+        k: getattr(bpy.types.Scene, k)[1].get("default", None)
         for k in [
             "pov_tempfiles_enable",
             "pov_deletefiles_enable",
@@ -106,7 +90,7 @@ def update2_0_0_9():
 
     # Get default values of pov material props.
     old_mat_props = {
-        k: getattr(bpy.types.Material, k)[1].get('default', None)
+        k: getattr(bpy.types.Material, k)[1].get("default", None)
         for k in [
             "pov_irid_enable",
             "pov_mirror_use_IOR",
@@ -129,7 +113,7 @@ def update2_0_0_9():
 
     # Get default values of pov texture props.
     old_tex_props = {
-        k: getattr(bpy.types.Texture, k)[1].get('default', None)
+        k: getattr(bpy.types.Texture, k)[1].get("default", None)
         for k in [
             "pov_tex_gamma_enable",
             "pov_tex_gamma_value",
@@ -139,7 +123,7 @@ def update2_0_0_9():
 
     # Get default values of pov object props.
     old_obj_props = {
-        k: getattr(bpy.types.Object, k)[1].get('default', None)
+        k: getattr(bpy.types.Object, k)[1].get("default", None)
         for k in [
             "pov_importance_value",
             "pov_collect_photons",
@@ -149,7 +133,7 @@ def update2_0_0_9():
 
     # Get default values of pov camera props.
     old_cam_props = {
-        k: getattr(bpy.types.Camera, k)[1].get('default', None)
+        k: getattr(bpy.types.Camera, k)[1].get("default", None)
         for k in [
             "pov_dof_enable",
             "pov_dof_aperture",
@@ -163,8 +147,7 @@ def update2_0_0_9():
 
     # Get default values of pov text props.
     old_txt_props = {
-        k: getattr(bpy.types.Text, k)[1].get('default', None)
-        for k in ["pov_custom_code"]
+        k: getattr(bpy.types.Text, k)[1].get("default", None) for k in ["pov_custom_code"]
     }
 
     # -----------------------------------------------------------------------------
@@ -211,7 +194,7 @@ class RenderCopySettings(bpy.types.Operator):
 
     bl_idname = "scene.pov_update_properties"
     bl_label = "PovRay render: Update to script v0.0.9"
-    bl_option = {'REGISTER'}
+    bl_option = {"REGISTER"}
 
     @classmethod
     def poll(cls, context):
@@ -219,7 +202,7 @@ class RenderCopySettings(bpy.types.Operator):
 
     def execute(self, context):
         update2_0_0_9()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 def register():
@@ -290,13 +273,13 @@ def register():
     Scene.pov_media_color = FloatVectorProperty(
         name="Media Color",
         description="The atmospheric media color",
-        subtype='COLOR',
+        subtype="COLOR",
         precision=4,
         step=0.01,
         min=0,
         soft_max=1,
         default=(0.001, 0.001, 0.001),
-        options={'ANIMATABLE'},
+        options={"ANIMATABLE"},
     )
 
     Scene.pov_baking_enable = BoolProperty(
@@ -577,12 +560,6 @@ def register():
         default=False,
     )
 
-    Mat.pov_mirror_metallic = BoolProperty(
-        name="Metallic Reflection",
-        description="mirror reflections get colored as diffuse (for metallic materials)",
-        default=False,
-    )
-
     Mat.pov_conserve_energy = BoolProperty(
         name="Conserve Energy",
         description="Light transmitted is more correctly reduced by mirror reflections, also the sum of diffuse and translucency gets reduced below one ",
@@ -622,13 +599,13 @@ def register():
     Mat.pov_interior_fade_color = FloatVectorProperty(
         name="Fade Color",
         description="Color of filtered attenuation for transparent materials",
-        subtype='COLOR',
+        subtype="COLOR",
         precision=4,
         step=0.01,
         min=0.0,
         soft_max=1.0,
         default=(0, 0, 0),
-        options={'ANIMATABLE'},
+        options={"ANIMATABLE"},
     )
 
     Mat.pov_caustics_enable = BoolProperty(
@@ -855,7 +832,6 @@ def unregister():
     del Scene.pov_comments_enable
     del Mat.pov_irid_enable
     del Mat.pov_mirror_use_IOR
-    del Mat.pov_mirror_metallic
     del Mat.pov_conserve_energy
     del Mat.pov_irid_amount
     del Mat.pov_irid_thickness

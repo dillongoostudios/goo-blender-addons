@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import bpy
 from mathutils import Vector, Matrix
@@ -43,6 +32,21 @@ def get_object_from_datapath(blender_object, data_path: str):
     return prop
 
 
+def get_node_socket(blender_material, type, name):
+    """
+    For a given material input name, retrieve the corresponding node tree socket for a given node type.
+
+    :param blender_material: a blender material for which to get the socket
+    :return: a blender NodeSocket for a given type
+    """
+    nodes = [n for n in blender_material.node_tree.nodes if isinstance(n, type) and not n.mute]
+    nodes = [node for node in nodes if check_if_is_linked_to_active_output(node.outputs[0])]
+    inputs = sum([[input for input in node.inputs if input.name == name] for node in nodes], [])
+    if inputs:
+        return inputs[0]
+    return None
+
+
 def get_socket(blender_material: bpy.types.Material, name: str):
     """
     For a given material input name, retrieve the corresponding node tree socket.
@@ -57,13 +61,9 @@ def get_socket(blender_material: bpy.types.Material, name: str):
         if name == "Emissive":
             # Check for a dedicated Emission node first, it must supersede the newer built-in one
             # because the newer one is always present in all Principled BSDF materials.
-            type = bpy.types.ShaderNodeEmission
-            name = "Color"
-            nodes = [n for n in blender_material.node_tree.nodes if isinstance(n, type) and not n.mute]
-            nodes = [node for node in nodes if check_if_is_linked_to_active_output(node.outputs[0])]
-            inputs = sum([[input for input in node.inputs if input.name == name] for node in nodes], [])
-            if inputs:
-                return inputs[0]
+            emissive_socket = get_node_socket(blender_material, bpy.types.ShaderNodeEmission, "Color")
+            if emissive_socket:
+                return emissive_socket
             # If a dedicated Emission node was not found, fall back to the Principled BSDF Emission socket.
             name = "Emission"
             type = bpy.types.ShaderNodeBsdfPrincipled
@@ -72,11 +72,8 @@ def get_socket(blender_material: bpy.types.Material, name: str):
             name = "Color"
         else:
             type = bpy.types.ShaderNodeBsdfPrincipled
-        nodes = [n for n in blender_material.node_tree.nodes if isinstance(n, type) and not n.mute]
-        nodes = [node for node in nodes if check_if_is_linked_to_active_output(node.outputs[0])]
-        inputs = sum([[input for input in node.inputs if input.name == name] for node in nodes], [])
-        if inputs:
-            return inputs[0]
+
+        return get_node_socket(blender_material, type, name)
 
     return None
 

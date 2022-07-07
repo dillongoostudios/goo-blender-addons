@@ -1,25 +1,9 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 bl_info = {
     "name": "Node Wrangler",
     "author": "Bartek Skorupa, Greg Zaal, Sebastian Koenig, Christian Brinkmann, Florian Meyer",
-    "version": (3, 38),
+    "version": (3, 40),
     "blender": (2, 93, 0),
     "location": "Node Editor Toolbar or Shift-W",
     "description": "Various tools to enhance and speed up node-based workflow",
@@ -732,6 +716,11 @@ def autolink(node1, node2, links):
     print("Could not make a link from " + node1.name + " to " + node2.name)
     return link_made
 
+def abs_node_location(node):
+    abs_location = node.location
+    if node.parent is None:
+        return abs_location
+    return abs_location + abs_node_location(node.parent)
 
 def node_at_pos(nodes, context, event):
     nodes_under_mouse = []
@@ -746,23 +735,10 @@ def node_at_pos(nodes, context, event):
     for node in nodes:
         skipnode = False
         if node.type != 'FRAME':  # no point trying to link to a frame node
-            locx = node.location.x
-            locy = node.location.y
             dimx = node.dimensions.x/dpifac()
             dimy = node.dimensions.y/dpifac()
-            if node.parent:
-                locx += node.parent.location.x
-                locy += node.parent.location.y
-                if node.parent.parent:
-                    locx += node.parent.parent.location.x
-                    locy += node.parent.parent.location.y
-                    if node.parent.parent.parent:
-                        locx += node.parent.parent.parent.location.x
-                        locy += node.parent.parent.parent.location.y
-                        if node.parent.parent.parent.parent:
-                            # Support three levels or parenting
-                            # There's got to be a better way to do this...
-                            skipnode = True
+            locx, locy = abs_node_location(node)
+
             if not skipnode:
                 node_points_with_dist.append([node, hypot(x - locx, y - locy)])  # Top Left
                 node_points_with_dist.append([node, hypot(x - (locx + dimx), y - locy)])  # Top Right
@@ -778,13 +754,9 @@ def node_at_pos(nodes, context, event):
 
     for node in nodes:
         if node.type != 'FRAME' and skipnode == False:
-            locx = node.location.x
-            locy = node.location.y
+            locx, locy = abs_node_location(node)
             dimx = node.dimensions.x/dpifac()
             dimy = node.dimensions.y/dpifac()
-            if node.parent:
-                locx += node.parent.location.x
-                locy += node.parent.location.y
             if (locx <= x <= locx + dimx) and \
                (locy - dimy <= y <= locy):
                 nodes_under_mouse.append(node)
@@ -839,26 +811,19 @@ def draw_circle_2d_filled(shader, mx, my, radius, colour=(1.0, 1.0, 1.0, 0.7)):
     shader.uniform_float("color", colour)
     batch.draw(shader)
 
+
 def draw_rounded_node_border(shader, node, radius=8, colour=(1.0, 1.0, 1.0, 0.7)):
     area_width = bpy.context.area.width - (16*dpifac()) - 1
     bottom_bar = (16*dpifac()) + 1
     sides = 16
     radius = radius*dpifac()
 
-    nlocx = (node.location.x+1)*dpifac()
-    nlocy = (node.location.y+1)*dpifac()
+    nlocx, nlocy = abs_node_location(node)
+
+    nlocx = (nlocx+1)*dpifac()
+    nlocy = (nlocy+1)*dpifac()
     ndimx = node.dimensions.x
     ndimy = node.dimensions.y
-    # This is a stupid way to do this... TODO use while loop
-    if node.parent:
-        nlocx += node.parent.location.x
-        nlocy += node.parent.location.y
-        if node.parent.parent:
-            nlocx += node.parent.parent.location.x
-            nlocy += node.parent.parent.location.y
-            if node.parent.parent.parent:
-                nlocx += node.parent.parent.parent.location.x
-                nlocy += node.parent.parent.parent.location.y
 
     if node.hide:
         nlocx += -1
@@ -1153,6 +1118,22 @@ class NWPrincipledPreferences(bpy.types.PropertyGroup):
         name='Displacement',
         default='displacement displace disp dsp height heightmap',
         description='Naming Components for displacement maps')
+    transmission: StringProperty(
+        name='Transmission',
+        default='transmission transparency',
+        description='Naming Components for transmission maps')
+    emission: StringProperty(
+        name='Emission',
+        default='emission emissive emit',
+        description='Naming Components for emission maps')
+    alpha: StringProperty(
+        name='Alpha',
+        default='alpha opacity',
+        description='Naming Components for alpha maps')
+    ambient_occlusion: StringProperty(
+        name='Ambient Occlusion',
+        default='ao ambient occlusion',
+        description='Naming Components for AO maps')
 
 # Addon prefs
 class NWNodeWrangler(bpy.types.AddonPreferences):
@@ -1214,6 +1195,10 @@ class NWNodeWrangler(bpy.types.AddonPreferences):
             col.prop(tags, "normal")
             col.prop(tags, "bump")
             col.prop(tags, "displacement")
+            col.prop(tags, "transmission")
+            col.prop(tags, "emission")
+            col.prop(tags, "alpha")
+            col.prop(tags, "ambient_occlusion")
 
         box = layout.box()
         col = box.column(align=True)
@@ -1871,7 +1856,7 @@ class NWPreviewNode(Operator, NWBase):
         shader_types = [x[1] for x in shaders_shader_nodes_props]
         mlocx = event.mouse_region_x
         mlocy = event.mouse_region_y
-        select_node = bpy.ops.node.select(mouse_x=mlocx, mouse_y=mlocy, extend=False)
+        select_node = bpy.ops.node.select(location=(mlocx, mlocy), extend=False)
         if 'FINISHED' in select_node:  # only run if mouse click is on a node
             active_tree, path_to_tree = get_active_tree(context)
             nodes, links = active_tree.nodes, active_tree.links
@@ -3246,6 +3231,10 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
         ['Specular', tags.specular.split(' '), None],
         ['Roughness', rough_abbr + gloss_abbr, None],
         ['Normal', normal_abbr + bump_abbr, None],
+        ['Transmission', tags.transmission.split(' '), None],
+        ['Emission', tags.emission.split(' '), None],
+        ['Alpha', tags.alpha.split(' '), None],
+        ['Ambient Occlusion', tags.ambient_occlusion.split(' '), None],
         ]
 
         # Look through texture_types and set value as filename of first matched file
@@ -3282,6 +3271,7 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
         print('\nMatched Textures:')
         texture_nodes = []
         disp_texture = None
+        ao_texture = None
         normal_node = None
         roughness_node = None
         for i, sname in enumerate(socketnames):
@@ -3298,7 +3288,8 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
 
                 # Add displacement offset nodes
                 disp_node = nodes.new(type='ShaderNodeDisplacement')
-                disp_node.location = active_node.location + Vector((0, -560))
+                # Align the Displacement node under the active Principled BSDF node
+                disp_node.location = active_node.location + Vector((100, -700))
                 link = links.new(disp_node.inputs[0], disp_texture.outputs[0])
 
                 # TODO Turn on true displacement in the material
@@ -3309,6 +3300,17 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
                 if output_node:
                     if not output_node[0].inputs[2].is_linked:
                         link = links.new(output_node[0].inputs[2], disp_node.outputs[0])
+
+                continue
+
+            # AMBIENT OCCLUSION TEXTURE
+            if sname[0] == 'Ambient Occlusion':
+                ao_texture = nodes.new(type='ShaderNodeTexImage')
+                img = bpy.data.images.load(path.join(import_path, sname[2]))
+                ao_texture.image = img
+                ao_texture.label = sname[0]
+                if ao_texture.image:
+                    ao_texture.image.colorspace_settings.is_data = True
 
                 continue
 
@@ -3359,7 +3361,7 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
                     link = links.new(active_node.inputs[sname[0]], texture_node.outputs[0])
 
                 # Use non-color for all but 'Base Color' Textures
-                if not sname[0] in ['Base Color'] and texture_node.image:
+                if not sname[0] in ['Base Color', 'Emission'] and texture_node.image:
                     texture_node.image.colorspace_settings.is_data = True
 
             else:
@@ -3372,6 +3374,10 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
 
         if disp_texture:
             texture_nodes.append(disp_texture)
+
+        if ao_texture:
+            # We want the ambient occlusion texture to be the top most texture node
+            texture_nodes.insert(0, ao_texture)
 
         # Alignment
         for i, texture_node in enumerate(texture_nodes):
@@ -4020,7 +4026,7 @@ class NWViewerFocus(bpy.types.Operator):
         if viewers:
             mlocx = event.mouse_region_x
             mlocy = event.mouse_region_y
-            select_node = bpy.ops.node.select(mouse_x=mlocx, mouse_y=mlocy, extend=False)
+            select_node = bpy.ops.node.select(location=(mlocx, mlocy), extend=False)
 
             if not 'FINISHED' in select_node:  # only run if we're not clicking on a node
                 region_x = context.region.width
@@ -4549,9 +4555,9 @@ class NWLinkUseOutputsNamesMenu(Menu, NWBase):
         props.use_outputs_names = True
 
 
-class NWVertColMenu(bpy.types.Menu):
-    bl_idname = "NODE_MT_nw_node_vertex_color_menu"
-    bl_label = "Vertex Colors"
+class NWAttributeMenu(bpy.types.Menu):
+    bl_idname = "NODE_MT_nw_node_attribute_menu"
+    bl_label = "Attributes"
 
     @classmethod
     def poll(cls, context):
@@ -4571,18 +4577,18 @@ class NWVertColMenu(bpy.types.Menu):
             for slot in obj.material_slots:
                 if slot.material == mat:
                     objs.append(obj)
-        vcols = []
+        attrs = []
         for obj in objs:
-            if obj.data.vertex_colors:
-                for vcol in obj.data.vertex_colors:
-                    vcols.append(vcol.name)
-        vcols = list(set(vcols))  # get a unique list
+            if obj.data.attributes:
+                for attr in obj.data.attributes:
+                    attrs.append(attr.name)
+        attrs = list(set(attrs))  # get a unique list
 
-        if vcols:
-            for vcol in vcols:
-                l.operator(NWAddAttrNode.bl_idname, text=vcol).attr_name = vcol
+        if attrs:
+            for attr in attrs:
+                l.operator(NWAddAttrNode.bl_idname, text=attr).attr_name = attr
         else:
-            l.label(text="No Vertex Color layers on objects with this material")
+            l.label(text="No attributes on objects with this material")
 
 
 class NWSwitchNodeTypeMenu(Menu, NWBase):
@@ -5005,7 +5011,7 @@ def select_parent_children_buttons(self, context):
 
 def attr_nodes_menu_func(self, context):
     col = self.layout.column(align=True)
-    col.menu("NODE_MT_nw_node_vertex_color_menu")
+    col.menu("NODE_MT_nw_node_attribute_menu")
     col.separator()
 
 
@@ -5291,7 +5297,7 @@ classes = (
     NWLinkStandardMenu,
     NWLinkUseNodeNameMenu,
     NWLinkUseOutputsNamesMenu,
-    NWVertColMenu,
+    NWAttributeMenu,
     NWSwitchNodeTypeMenu,
     NWSwitchShadersInputSubmenu,
     NWSwitchShadersOutputSubmenu,

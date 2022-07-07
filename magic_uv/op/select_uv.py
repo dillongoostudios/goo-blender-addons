@@ -1,27 +1,11 @@
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# <pep8-80 compliant>
 
 __author__ = "Nutti <nutti.metro@gmail.com>"
 __status__ = "production"
-__version__ = "6.5"
-__date__ = "6 Mar 2021"
+__version__ = "6.6"
+__date__ = "22 Apr 2022"
 
 import bpy
 from bpy.props import BoolProperty, FloatProperty, EnumProperty
@@ -34,18 +18,18 @@ from ..utils import compatibility as compat
 
 
 def _is_valid_context(context):
+    # 'IMAGE_EDITOR' and 'VIEW_3D' space is allowed to execute.
+    # If 'View_3D' space is not allowed, you can't find option in Tool-Shelf
+    # after the execution
+    if not common.is_valid_space(context, ['IMAGE_EDITOR', 'VIEW_3D']):
+        return False
+
     objs = common.get_uv_editable_objects(context)
     if not objs:
         return False
 
     # only edit mode is allowed to execute
     if context.object.mode != 'EDIT':
-        return False
-
-    # 'IMAGE_EDITOR' and 'VIEW_3D' space is allowed to execute.
-    # If 'View_3D' space is not allowed, you can't find option in Tool-Shelf
-    # after the execution
-    if not common.is_valid_space(context, ['IMAGE_EDITOR', 'VIEW_3D']):
         return False
 
     return True
@@ -65,8 +49,8 @@ class _Properties:
         scene.muv_select_uv_same_polygon_threshold = FloatProperty(
             name="Same Polygon Threshold",
             description="Threshold to distinguish same polygons",
-            default=0.000001,
-            min=0.000001,
+            default=0.00001,
+            min=0.00001,
             max=0.01,
             step=0.00001
         )
@@ -107,8 +91,8 @@ class MUV_OT_SelectUV_SelectOverlapped(bpy.types.Operator):
     same_polygon_threshold = FloatProperty(
         name="Same Polygon Threshold",
         description="Threshold to distinguish same polygons",
-        default=0.000001,
-        min=0.000001,
+        default=0.00001,
+        min=0.00001,
         max=0.01,
         step=0.00001
     )

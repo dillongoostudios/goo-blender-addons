@@ -1,4 +1,6 @@
-# GPL # "authors": dudecon, jambay
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Authors: dudecon, jambay
 
 # Module notes:
 #
@@ -1244,7 +1246,7 @@ def plan(Thesketch, oldrows=0):
         # rows = [list of row objects]
         rows = []
 
-        # splits are places where we NEED a row division, to accomidate openings
+        # splits are places where we NEED a row division, to accommodate openings
         # add a split for the bottom row
         splits = [dims['b'] + settings['hb']]
 

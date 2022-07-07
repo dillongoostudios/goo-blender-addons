@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -735,6 +719,7 @@ class AnimationCurveNodeWrapper:
         'LCL_SCALING': ("Lcl Scaling", "S", ("X", "Y", "Z")),
         'SHAPE_KEY': ("DeformPercent", "DeformPercent", ("DeformPercent",)),
         'CAMERA_FOCAL': ("FocalLength", "FocalLength", ("FocalLength",)),
+        'CAMERA_FOCUS_DISTANCE': ("FocusDistance", "FocusDistance", ("FocusDistance",)),
     }
 
     def __init__(self, elem_key, kind, force_keying, force_startend_keying, default_values=...):
@@ -1197,7 +1182,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
         if self.parent == arm_obj and self.bdata.parent_type == 'ARMATURE':
             return True
         for mod in self.bdata.modifiers:
-            if mod.type == 'ARMATURE' and mod.object in {arm_obj.bdata, arm_obj.bdata.proxy}:
+            if mod.type == 'ARMATURE' and mod.object == arm_obj.bdata:
                 return True
 
     # #### Duplis...
@@ -1225,7 +1210,7 @@ FBXExportSettings = namedtuple("FBXExportSettings", (
     "report", "to_axes", "global_matrix", "global_scale", "apply_unit_scale", "unit_scale",
     "bake_space_transform", "global_matrix_inv", "global_matrix_inv_transposed",
     "context_objects", "object_types", "use_mesh_modifiers", "use_mesh_modifiers_render",
-    "mesh_smooth_type", "use_subsurf", "use_mesh_edges", "use_tspace",
+    "mesh_smooth_type", "use_subsurf", "use_mesh_edges", "use_tspace", "use_triangles",
     "armature_nodetype", "use_armature_deform_only", "add_leaf_bones",
     "bone_correction_matrix", "bone_correction_matrix_inv",
     "bake_anim", "bake_anim_use_all_bones", "bake_anim_use_nla_strips", "bake_anim_use_all_actions",

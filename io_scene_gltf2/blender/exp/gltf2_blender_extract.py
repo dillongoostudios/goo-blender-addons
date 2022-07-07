@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import numpy as np
 from mathutils import Vector
@@ -20,9 +9,13 @@ from ...io.com.gltf2_io_debug import print_console
 from io_scene_gltf2.blender.exp import gltf2_blender_gather_skins
 
 
-def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vertex_groups, modifiers, export_settings):
+def extract_primitives(blender_mesh, uuid_for_skined_data, blender_vertex_groups, modifiers, export_settings):
     """Extract primitives from a mesh."""
     print_console('INFO', 'Extracting primitive: ' + blender_mesh.name)
+
+    blender_object = None
+    if uuid_for_skined_data:
+        blender_object = export_settings['vtree'].nodes[uuid_for_skined_data].blender_object
 
     use_normals = export_settings[gltf2_blender_export_keys.NORMALS]
     if use_normals:
@@ -68,7 +61,7 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
             armature = None
 
         if armature:
-            skin = gltf2_blender_gather_skins.gather_skin(armature, export_settings)
+            skin = gltf2_blender_gather_skins.gather_skin(export_settings['vtree'].nodes[uuid_for_skined_data].armature, export_settings)
             if not skin:
                 armature = None
 
@@ -89,7 +82,14 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
     locs, morph_locs = __get_positions(blender_mesh, key_blocks, armature, blender_object, export_settings)
     if skin:
-        vert_bones, num_joint_sets = __get_bone_data(blender_mesh, skin, blender_vertex_groups)
+        vert_bones, num_joint_sets, need_neutral_bone = __get_bone_data(blender_mesh, skin, blender_vertex_groups)
+        if need_neutral_bone is True:
+            # Need to create a fake joint at root of armature
+            # In order to assign not assigned vertices to it
+            # But for now, this is not yet possible, we need to wait the armature node is created
+            # Just store this, to be used later
+            armature_uuid = export_settings['vtree'].nodes[uuid_for_skined_data].armature
+            export_settings['vtree'].nodes[armature_uuid].need_neutral_bone = True
 
     # In Blender there is both per-vert data, like position, and also per-loop
     # (loop=corner-of-poly) data, like normals or UVs. glTF only has per-vert
@@ -387,8 +387,8 @@ def __get_positions(blender_mesh, key_blocks, armature, blender_object, export_s
 
     # Transform for skinning
     if armature and blender_object:
-        apply_matrix = armature.matrix_world.inverted_safe() @ blender_object.matrix_world
-        loc_transform = armature.matrix_world @ apply_matrix
+        # apply_matrix = armature.matrix_world.inverted_safe() @ blender_object.matrix_world
+        # loc_transform = armature.matrix_world @ apply_matrix
 
         loc_transform = blender_object.matrix_world
         locs[:] = __apply_mat_to_all(loc_transform, locs)
@@ -526,22 +526,19 @@ def __get_uvs(blender_mesh, uv_i):
 
 
 def __get_colors(blender_mesh, color_i):
-    layer = blender_mesh.vertex_colors[color_i]
     colors = np.empty(len(blender_mesh.loops) * 4, dtype=np.float32)
-    layer.data.foreach_get('color', colors)
+    layer = blender_mesh.vertex_colors[color_i]
+    blender_mesh.color_attributes[layer.name].data.foreach_get('color', colors)
     colors = colors.reshape(len(blender_mesh.loops), 4)
-
-    # sRGB -> Linear
-    rgb = colors[:, :-1]
-    not_small = rgb >= 0.04045
-    small_result = np.where(rgb < 0.0, 0.0, rgb * (1.0 / 12.92))
-    large_result = np.power((rgb + 0.055) * (1.0 / 1.055), 2.4, where=not_small)
-    rgb[:] = np.where(not_small, large_result, small_result)
-
+    # colors are already linear, no need to switch color space
     return colors
 
 
 def __get_bone_data(blender_mesh, skin, blender_vertex_groups):
+
+    need_neutral_bone = False
+    min_influence = 0.0001
+
     joint_name_to_index = {joint.name: index for index, joint in enumerate(skin.joints)}
     group_to_joint = [joint_name_to_index.get(g.name) for g in blender_vertex_groups]
 
@@ -554,7 +551,7 @@ def __get_bone_data(blender_mesh, skin, blender_vertex_groups):
         if vertex.groups:
             for group_element in vertex.groups:
                 weight = group_element.weight
-                if weight <= 0.0:
+                if weight <= min_influence:
                     continue
                 try:
                     joint = group_to_joint[group_element.group]
@@ -564,7 +561,10 @@ def __get_bone_data(blender_mesh, skin, blender_vertex_groups):
                     continue
                 bones.append((joint, weight))
         bones.sort(key=lambda x: x[1], reverse=True)
-        if not bones: bones = ((0, 1.0),)  # HACK for verts with zero weight (#308)
+        if not bones:
+            # Is not assign to any bone
+            bones = ((len(skin.joints), 1.0),)  # Assign to a joint that will be created later
+            need_neutral_bone = True
         vert_bones.append(bones)
         if len(bones) > max_num_influences:
             max_num_influences = len(bones)
@@ -572,7 +572,7 @@ def __get_bone_data(blender_mesh, skin, blender_vertex_groups):
     # How many joint sets do we need? 1 set = 4 influences
     num_joint_sets = (max_num_influences + 3) // 4
 
-    return vert_bones, num_joint_sets
+    return vert_bones, num_joint_sets, need_neutral_bone
 
 
 def __zup2yup(array):

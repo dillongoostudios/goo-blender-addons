@@ -1,34 +1,17 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 3
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 import gpu
 import bmesh
+import ctypes
 from mathutils import Matrix
 
-def load_shader(shadername):
-    from os import path
-    with open(path.join(path.dirname(__file__), 'shaders', shadername), 'r') as f:
-        return f.read()
 
 def get_mesh_vert_co_array(me):
     tot_vco = len(me.vertices)
     if tot_vco:
         import numpy as np
 
-        verts_co = np.empty(len(me.vertices) * 3, 'f4')
+        verts_co = np.empty(len(me.vertices) * 3, "f4")
         me.vertices.foreach_get("co", verts_co)
         verts_co.shape = (-1, 3)
         return verts_co
@@ -40,7 +23,7 @@ def get_bmesh_vert_co_array(bm):
     if tot_vco:
         import numpy as np
 
-        return np.array([v.co for v in bm.verts], 'f4')
+        return np.array([v.co for v in bm.verts], "f4")
     return ()
 
 
@@ -50,7 +33,7 @@ def get_mesh_tri_verts_array(me):
     if len_triangles:
         import numpy as np
 
-        tris = np.empty(len_triangles * 3, 'i4')
+        tris = np.empty(len_triangles * 3, "i4")
         me.loop_triangles.foreach_get("vertices", tris)
         tris.shape = (-1, 3)
         return tris
@@ -66,7 +49,7 @@ def get_bmesh_tri_verts_array(bm):
             l_tri_layer = bm.faces.layers.int.new("l_tri")
 
         ltris = bm.calc_loop_triangles()
-        tris = np.empty((len(ltris), 3), 'i4')
+        tris = np.empty((len(ltris), 3), "i4")
         i = 0
 
         bm.faces.ensure_lookup_table()
@@ -90,7 +73,7 @@ def get_mesh_edge_verts_array(me):
     if tot_edges:
         import numpy as np
 
-        edge_verts = np.empty(tot_edges * 2, 'i4')
+        edge_verts = np.empty(tot_edges * 2, "i4")
         me.edges.foreach_get("vertices", edge_verts)
         edge_verts.shape = tot_edges, 2
         return edge_verts
@@ -102,7 +85,8 @@ def get_bmesh_edge_verts_array(bm):
     edges = [[e.verts[0].index, e.verts[1].index] for e in bm.edges if not e.hide]
     if edges:
         import numpy as np
-        return np.array(edges, 'i4')
+
+        return np.array(edges, "i4")
     return ()
 
 
@@ -123,14 +107,15 @@ def get_bmesh_loosevert_array(bm):
     looseverts = [v.index for v in bm.verts if not (v.link_edges or v.hide)]
     if looseverts:
         import numpy as np
-        return np.array(looseverts, 'i4')
+
+        return np.array(looseverts, "i4")
     return ()
 
 
-class _Mesh_Arrays():
+class _Mesh_Arrays:
     def __init__(self, obj, create_tris, create_edges, create_looseverts):
         self.tri_verts = self.edge_verts = self.looseverts = ()
-        if obj.type == 'MESH':
+        if obj.type == "MESH":
             me = obj.data
             if me.is_editmode:
                 bm = bmesh.from_edit_mesh(me)
@@ -148,6 +133,7 @@ class _Mesh_Arrays():
                 del bm
             else:
                 import bpy
+
                 self.verts_co = get_mesh_vert_co_array(me)
 
                 if create_tris:
@@ -161,20 +147,19 @@ class _Mesh_Arrays():
                     self.looseverts = get_mesh_loosevert_array(me, edge_verts)
                     del edge_verts
 
-
-        else: #TODO
+        else:  # TODO
             import numpy as np
 
-            self.verts_co = np.zeros((1,3), 'f4')
-            self.looseverts = np.zeros(1, 'i4')
+            self.verts_co = np.zeros((1, 3), "f4")
+            self.looseverts = np.zeros(1, "i4")
 
     def __del__(self):
         del self.tri_verts, self.edge_verts, self.looseverts
         del self.verts_co
 
 
-class GPU_Indices_Mesh():
-    __slots__ = (\
+class GPU_Indices_Mesh:
+    __slots__ = (
         "ob_data",
         "draw_tris",
         "draw_edges",
@@ -187,14 +172,19 @@ class GPU_Indices_Mesh():
         "edge_verts",
         "looseverts",
         "first_index",
-        "users")
+        "users",
+    )
 
     _Hash = {}
     shader = None
+    UBO_data = None
+    UBO = None
 
     @classmethod
     def end_opengl(cls):
         del cls.shader
+        del cls.UBO
+        del cls.UBO_data
 
         del cls
 
@@ -211,14 +201,79 @@ class GPU_Indices_Mesh():
         atexit.unregister(cls.end_opengl)
         atexit.register(cls.end_opengl)
 
-        cls.shader = gpu.types.GPUShader(
-            load_shader("ID_color_vert.glsl"),
-            load_shader("ID_color_frag.glsl"),
-            defines="#define USE_CLIP_PLANES\n")
+        shader_info = gpu.types.GPUShaderCreateInfo()
 
-        cls.unif_offset = cls.shader.uniform_from_name('offset')
-        cls.use_clip_planes = False
+        shader_info.define("USE_CLIP_PLANES")
+        shader_info.typedef_source(
+            "struct Data {\n"
+            "#ifdef USE_CLIP_PLANES\n"
+            "  mat4 ModelMatrix;"
+            "  vec4 WorldClipPlanes[4];\n"
+            "#endif\n"
+            "  int offset;\n"
+            "#ifdef USE_CLIP_PLANES\n"
+            "  bool use_clip_planes;\n"
+            "#endif\n"
+            "};\n"
+        )
+        shader_info.push_constant("MAT4", "ModelViewProjectionMatrix")
+        shader_info.uniform_buf(0, "Data", "g_data")
+        shader_info.vertex_in(0, "VEC3", "pos")
+        shader_info.vertex_source(
+            # #define USE_CLIP_PLANES
+            # uniform mat4 ModelViewProjectionMatrix;
+            # layout(binding = 1, std140) uniform _g_data { Data g_data; };;
+            # in vec3 pos;
+            "void main()"
+            "{\n"
+            "#ifdef USE_CLIP_PLANES\n"
+            "  if (g_data.use_clip_planes) {"
+            "    vec4 wpos = g_data.ModelMatrix * vec4(pos, 1.0);"
+            "    gl_ClipDistance[0] = dot(g_data.WorldClipPlanes[0], wpos);"
+            "    gl_ClipDistance[1] = dot(g_data.WorldClipPlanes[1], wpos);"
+            "    gl_ClipDistance[2] = dot(g_data.WorldClipPlanes[2], wpos);"
+            "    gl_ClipDistance[3] = dot(g_data.WorldClipPlanes[3], wpos);"
+            "  }\n"
+            "#endif\n"
+            "  gl_Position = ModelViewProjectionMatrix * vec4(pos, 1.0);"
+            "}"
+        )
 
+        shader_info.fragment_out(0, "UINT", "fragColor")
+        shader_info.fragment_source(
+            # out uint fragColor;
+            "void main() {fragColor = uint(gl_PrimitiveID + g_data.offset);}"
+        )
+
+        cls.shader = gpu.shader.create_from_info(shader_info)
+
+        class _UBO_struct(ctypes.Structure):
+            _pack_ = 16
+            _fields_ = [
+                ("ModelMatrix", 4 * (4 * ctypes.c_float)),
+                ("WorldClipPlanes", 4 * (4 * ctypes.c_float)),
+                ("offset", ctypes.c_int),
+                ("use_clip_planes", ctypes.c_int),
+                ("_pad", ctypes.c_int * 2),
+            ]
+
+        cls.UBO_data = _UBO_struct()
+        cls.UBO = gpu.types.GPUUniformBuf(
+            gpu.types.Buffer("UBYTE", ctypes.sizeof(cls.UBO_data), cls.UBO_data)
+        )
+
+    @staticmethod
+    def update_UBO():
+        cls = GPU_Indices_Mesh
+        cls.UBO.update(
+            gpu.types.Buffer(
+                "UBYTE",
+                ctypes.sizeof(cls.UBO_data),
+                cls.UBO_data,
+            )
+        )
+        cls.shader.bind()
+        cls.shader.uniform_block("g_data", cls.UBO)
 
     def __init__(self, depsgraph, obj, draw_tris, draw_edges, draw_verts):
         self.ob_data = obj.original.data
@@ -255,7 +310,9 @@ class GPU_Indices_Mesh():
             GPU_Indices_Mesh.init_opengl()
 
             ## Init Array ##
-            mesh_arrays = _Mesh_Arrays(depsgraph.id_eval_get(obj), draw_tris, draw_edges, draw_verts)
+            mesh_arrays = _Mesh_Arrays(
+                depsgraph.id_eval_get(obj), draw_tris, draw_edges, draw_verts
+            )
 
             if mesh_arrays.verts_co is None:
                 self.draw_tris = False
@@ -274,16 +331,16 @@ class GPU_Indices_Mesh():
             del mesh_arrays
 
             format = gpu.types.GPUVertFormat()
-            format.attr_add(id="pos", comp_type='F32', len=3, fetch_mode='FLOAT')
+            format.attr_add(id="pos", comp_type="F32", len=3, fetch_mode="FLOAT")
 
-            vbo = gpu.types.GPUVertBuf(format, len = len(self.verts_co))
+            vbo = gpu.types.GPUVertBuf(format, len=len(self.verts_co))
 
-            vbo.attr_fill(0, data = self.verts_co)
+            vbo.attr_fill(0, data=self.verts_co)
 
             ## Create Batch for Tris ##
             if len(self.tri_verts) > 0:
-                ebo = gpu.types.GPUIndexBuf(type = "TRIS", seq = self.tri_verts)
-                self.batch_tris = gpu.types.GPUBatch(type = "TRIS", buf = vbo, elem = ebo)
+                ebo = gpu.types.GPUIndexBuf(type="TRIS", seq=self.tri_verts)
+                self.batch_tris = gpu.types.GPUBatch(type="TRIS", buf=vbo, elem=ebo)
                 self.batch_tris.program_set(self.shader)
             else:
                 self.draw_tris = False
@@ -291,8 +348,8 @@ class GPU_Indices_Mesh():
 
             ## Create Batch for Edges ##
             if len(self.edge_verts) > 0:
-                ebo = gpu.types.GPUIndexBuf(type = "LINES", seq = self.edge_verts)
-                self.batch_edges = gpu.types.GPUBatch(type = "LINES", buf = vbo, elem = ebo)
+                ebo = gpu.types.GPUIndexBuf(type="LINES", seq=self.edge_verts)
+                self.batch_edges = gpu.types.GPUBatch(type="LINES", buf=vbo, elem=ebo)
                 self.batch_edges.program_set(self.shader)
             else:
                 self.draw_edges = False
@@ -300,13 +357,12 @@ class GPU_Indices_Mesh():
 
             ## Create Batch for Loose Verts ##
             if len(self.looseverts) > 0:
-                ebo = gpu.types.GPUIndexBuf(type = "POINTS", seq = self.looseverts)
-                self.batch_lverts = gpu.types.GPUBatch(type = "POINTS", buf = vbo, elem = ebo)
+                ebo = gpu.types.GPUIndexBuf(type="POINTS", seq=self.looseverts)
+                self.batch_lverts = gpu.types.GPUBatch(type="POINTS", buf=vbo, elem=ebo)
                 self.batch_lverts.program_set(self.shader)
             else:
                 self.draw_verts = False
                 self.batch_lverts = None
-
 
     def get_tot_elems(self):
         tot = 0
@@ -321,12 +377,10 @@ class GPU_Indices_Mesh():
 
         return tot
 
-
     def set_draw_mode(self, draw_tris, draw_edges, draw_verts):
         self.draw_tris = draw_tris and len(self.tri_verts) > 0
         self.draw_edges = draw_edges and len(self.edge_verts) > 0
         self.draw_verts = draw_verts and len(self.looseverts) > 0
-
 
     def Draw(self, index_offset, ob_mat, depth_offset=0.00005):
         self.first_index = index_offset
@@ -335,12 +389,17 @@ class GPU_Indices_Mesh():
         gpu.matrix.multiply_matrix(ob_mat)
 
         self.shader.bind()
-        if GPU_Indices_Mesh.use_clip_planes:
+        if GPU_Indices_Mesh.UBO_data.use_clip_planes:
             gpu.state.clip_distances_set(4)
-            self.shader.uniform_float("ModelMatrix", ob_mat)
+            self.UBO_data.ModelMatrix[0] = ob_mat[0][:]
+            self.UBO_data.ModelMatrix[1] = ob_mat[1][:]
+            self.UBO_data.ModelMatrix[2] = ob_mat[2][:]
+            self.UBO_data.ModelMatrix[3] = ob_mat[3][:]
 
         if self.draw_tris:
-            self.shader.uniform_int("offset", (index_offset,))
+            self.UBO_data.offset = index_offset
+            self.update_UBO()
+
             self.batch_tris.draw(self.shader)
             index_offset += len(self.tri_verts)
 
@@ -355,7 +414,7 @@ class GPU_Indices_Mesh():
 
             far_ += depth_offset
             near += depth_offset
-            range = (far_ - near)
+            range = far_ - near
             if is_persp:
                 winmat[2][2] = -(far_ + near) / range
                 winmat[2][3] = (-2 * far_ * near) / range
@@ -365,22 +424,25 @@ class GPU_Indices_Mesh():
             gpu.matrix.load_projection_matrix(winmat)
 
         if self.draw_edges:
-            self.shader.uniform_int("offset", (index_offset,))
-            #bgl.glLineWidth(3.0)
+            self.UBO_data.offset = index_offset
+            self.update_UBO()
+
+            # bgl.glLineWidth(3.0)
             self.batch_edges.draw(self.shader)
-            #bgl.glLineWidth(1.0)
+            # bgl.glLineWidth(1.0)
             index_offset += len(self.edge_verts)
 
         if self.draw_verts:
-            self.shader.uniform_int("offset", (index_offset,))
+            self.UBO_data.offset = index_offset
+            self.update_UBO()
+
             self.batch_lverts.draw(self.shader)
 
-        if GPU_Indices_Mesh.use_clip_planes:
+        if GPU_Indices_Mesh.UBO_data.use_clip_planes:
             gpu.state.clip_distances_set(0)
 
         gpu.matrix.pop()
         gpu.matrix.pop_projection()
-
 
     def get_tri_co(self, index):
         return self.verts_co[self.tri_verts[index]]
@@ -394,8 +456,7 @@ class GPU_Indices_Mesh():
     def get_loop_tri_co_by_bmface(self, bm, bmface):
         l_tri_layer = bm.faces.layers.int["l_tri"]
         tri = bmface[l_tri_layer]
-        return self.verts_co[self.tri_verts[tri : tri + len(bmface.verts) - 2]]
-
+        return self.verts_co[self.tri_verts[tri: tri + len(bmface.verts) - 2]]
 
     def get_tri_verts(self, index):
         return self.tri_verts[index]
@@ -418,7 +479,9 @@ class GPU_Indices_Mesh():
             del self.looseverts
             GPU_Indices_Mesh._Hash.pop(self.ob_data)
 
-        #print('mesh_del', self.obj.name)
+        # print('mesh_del', self.obj.name)
+
+
 def gpu_Indices_enable_state(winmat, viewmat):
     GPU_Indices_Mesh.init_opengl()
     gpu.matrix.push()
@@ -435,16 +498,17 @@ def gpu_Indices_restore_state():
 
 def gpu_Indices_use_clip_planes(rv3d, value):
     GPU_Indices_Mesh.init_opengl()
-    shader = GPU_Indices_Mesh.shader
-    shader.bind()
     if value and rv3d.use_clip_planes:
-        GPU_Indices_Mesh.use_clip_planes = True
-        planes = gpu.types.Buffer('FLOAT', (6, 4), rv3d.clip_planes)
-        shader.uniform_vector_float(shader.uniform_from_name("WorldClipPlanes"), planes, 4, 4)
+        GPU_Indices_Mesh.UBO_data.use_clip_planes = True
+        GPU_Indices_Mesh.UBO_data.WorldClipPlanes[0] = rv3d.clip_planes[0][:]
+        GPU_Indices_Mesh.UBO_data.WorldClipPlanes[1] = rv3d.clip_planes[1][:]
+        GPU_Indices_Mesh.UBO_data.WorldClipPlanes[2] = rv3d.clip_planes[2][:]
+        GPU_Indices_Mesh.UBO_data.WorldClipPlanes[3] = rv3d.clip_planes[3][:]
     else:
-        GPU_Indices_Mesh.use_clip_planes = False
+        GPU_Indices_Mesh.UBO_data.use_clip_planes = False
 
-    shader.uniform_bool("use_clip_planes", (GPU_Indices_Mesh.use_clip_planes,))
+    GPU_Indices_Mesh.update_UBO()
+
 
 def gpu_Indices_mesh_cache_clear():
     GPU_Indices_Mesh._Hash.clear()

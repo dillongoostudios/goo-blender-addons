@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -565,7 +549,7 @@ def blen_read_animations_curves_iter(fbx_curves, blen_start_offset, fbx_start_of
         yield (curr_blenkframe, curr_values)
 
 
-def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset):
+def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset, global_scale):
     """
     'Bake' loc/rot/scale into the action,
     taking any pre_ and post_ matrix into account to transform from fbx into blender space.
@@ -599,7 +583,7 @@ def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset):
     elif isinstance(item, ShapeKey):
         props = [(item.path_from_id("value"), 1, "Key")]
     elif isinstance(item, Camera):
-        props = [(item.path_from_id("lens"), 1, "Camera")]
+        props = [(item.path_from_id("lens"), 1, "Camera"), (item.dof.path_from_id("focus_distance"), 1, "Camera")]
     else:  # Object or PoseBone:
         if item.is_bone:
             bl_obj = item.bl_obj.pose.bones[item.bl_bone]
@@ -607,7 +591,7 @@ def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset):
             bl_obj = item.bl_obj
 
         # We want to create actions for objects, but for bones we 'reuse' armatures' actions!
-        grpname = item.bl_obj.name
+        grpname = bl_obj.name
 
         # Since we might get other channels animated in the end, due to all FBX transform magic,
         # we need to add curves for whole loc/rot/scale in any case.
@@ -649,13 +633,17 @@ def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset):
 
     elif isinstance(item, Camera):
         for frame, values in blen_read_animations_curves_iter(fbx_curves, anim_offset, 0, fps):
-            value = 0.0
+            focal_length = 0.0
+            focus_distance = 0.0
             for v, (fbxprop, channel, _fbx_acdata) in values:
-                assert(fbxprop == b'FocalLength')
+                assert(fbxprop == b'FocalLength' or fbxprop == b'FocusDistance' )
                 assert(channel == 0)
-                value = v
+                if (fbxprop == b'FocalLength' ):
+                    focal_length = v
+                elif(fbxprop == b'FocusDistance'):
+                    focus_distance = v / 1000 * global_scale
 
-            for fc, v in zip(blen_curves, (value,)):
+            for fc, v in zip(blen_curves, (focal_length, focus_distance)):
                 store_keyframe(fc, frame, v)
 
     else:  # Object or PoseBone:
@@ -731,7 +719,7 @@ def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset):
         fc.update()
 
 
-def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_offset):
+def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_offset, global_scale):
     """
     Recreate an action per stack/layer/object combinations.
     Only the first found action is linked to objects, more complex setups are not handled,
@@ -776,7 +764,7 @@ def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_o
                 if not id_data.animation_data.action:
                     id_data.animation_data.action = action
                 # And actually populate the action!
-                blen_read_animations_action_item(action, item, cnodes, scene.render.fps, anim_offset)
+                blen_read_animations_action_item(action, item, cnodes, scene.render.fps, anim_offset, global_scale)
 
 
 # ----
@@ -1125,7 +1113,7 @@ def blen_read_geom_layer_smooth(fbx_obj, mesh):
         return False
 
     if fbx_layer_mapping == b'ByEdge':
-        # some models have bad edge data, we cant use this info...
+        # some models have bad edge data, we can't use this info...
         if not mesh.edges:
             print("warning skipping sharp edges data, no valid edges...")
             return False
@@ -1174,13 +1162,13 @@ def blen_read_geom_layer_edge_crease(fbx_obj, mesh):
     layer_id = b'EdgeCrease'
     fbx_layer_data = elem_prop_first(elem_find_first(fbx_layer, layer_id))
 
-    # some models have bad edge data, we cant use this info...
+    # some models have bad edge data, we can't use this info...
     if not mesh.edges:
         print("warning skipping edge crease data, no valid edges...")
         return False
 
     if fbx_layer_mapping == b'ByEdge':
-        # some models have bad edge data, we cant use this info...
+        # some models have bad edge data, we can't use this info...
         if not mesh.edges:
             print("warning skipping edge crease data, no valid edges...")
             return False
@@ -1191,7 +1179,7 @@ def blen_read_geom_layer_edge_crease(fbx_obj, mesh):
             fbx_layer_data, None,
             fbx_layer_mapping, fbx_layer_ref,
             1, 1, layer_id,
-            # Blender squares those values before sending them to OpenSubdiv, when other softwares don't,
+            # Blender squares those values before sending them to OpenSubdiv, when other software don't,
             # so we need to compensate that to get similar results through FBX...
             xform=sqrt,
             )
@@ -1443,9 +1431,9 @@ def blen_read_material(fbx_tmpl, fbx_obj, settings):
     # No specular color in Principled BSDF shader, assumed to be either white or take some tint from diffuse one...
     # TODO: add way to handle tint option (guesstimate from spec color + intensity...)?
     ma_wrap.specular = elem_props_get_number(fbx_props, b'SpecularFactor', 0.25) * 2.0
-    # XXX Totally empirical conversion, trying to adapt it
-    #     (from 1.0 - 0.0 Principled BSDF range to 0.0 - 100.0 FBX shininess range)...
-    fbx_shininess = elem_props_get_number(fbx_props, b'Shininess', 20.0)
+    # XXX Totally empirical conversion, trying to adapt it (and protect against invalid negative values, see T96076):
+    #     From [1.0 - 0.0] Principled BSDF range to [0.0 - 100.0] FBX shininess range)...
+    fbx_shininess = max(elem_props_get_number(fbx_props, b'Shininess', 20.0), 0.0)
     ma_wrap.roughness = 1.0 - (sqrt(fbx_shininess) / 10.0)
     # Sweetness... Looks like we are not the only ones to not know exactly how FBX is supposed to work (see T59850).
     # According to one of its developers, Unity uses that formula to extract alpha value:
@@ -1558,6 +1546,10 @@ def blen_read_camera(fbx_tmpl, fbx_obj, global_scale):
     camera = bpy.data.cameras.new(name=elem_name_utf8)
 
     camera.type = 'ORTHO' if elem_props_get_enum(fbx_props, b'CameraProjectionType', 0) == 1 else 'PERSP'
+
+    camera.dof.focus_distance = elem_props_get_number(fbx_props, b'FocusDistance', 10 * 1000) / 1000 * global_scale
+    if (elem_props_get_bool(fbx_props, b'UseDepthOfField', False)):
+        camera.dof.use_dof = True
 
     camera.lens = elem_props_get_number(fbx_props, b'FocalLength', 35.0)
     camera.sensor_width = elem_props_get_number(fbx_props, b'FilmWidth', 32.0 * M2I) / M2I
@@ -2674,7 +2666,7 @@ def load(operator, context, filepath="",
     def connection_filter_ex(fbx_uuid, fbx_id, dct):
         return [(c_found[0], c_found[1], c_type)
                 for (c_uuid, c_type) in dct.get(fbx_uuid, ())
-                # 0 is used for the root node, which isnt in fbx_table_nodes
+                # 0 is used for the root node, which isn't in fbx_table_nodes
                 for c_found in (() if c_uuid == 0 else (fbx_table_nodes.get(c_uuid, (None, None)),))
                 if (fbx_id is None) or (c_found[0] and c_found[0].id == fbx_id)]
 
@@ -3005,6 +2997,13 @@ def load(operator, context, filepath="",
                             continue
                         cam = fbx_item[1]
                         items.append((cam, lnk_prop))
+                    elif lnk_prop == b'FocusDistance':  # Camera focus.
+                        from bpy.types import Camera
+                        fbx_item = fbx_table_nodes.get(n_uuid, None)
+                        if fbx_item is None or not isinstance(fbx_item[1], Camera):
+                            continue
+                        cam = fbx_item[1]
+                        items.append((cam, lnk_prop))
                     elif lnk_prop == b'DiffuseColor':
                         from bpy.types import Material
                         fbx_item = fbx_table_nodes.get(n_uuid, None)
@@ -3043,14 +3042,15 @@ def load(operator, context, filepath="",
                     channel = {
                         b'd|X': 0, b'd|Y': 1, b'd|Z': 2,
                         b'd|DeformPercent': 0,
-                        b'd|FocalLength': 0
+                        b'd|FocalLength': 0,
+                        b'd|FocusDistance': 0
                     }.get(acn_ctype.props[3], None)
                     if channel is None:
                         continue
                     curvenodes[acn_uuid][ac_uuid] = (fbx_acitem, channel)
 
             # And now that we have sorted all this, apply animations!
-            blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, settings.anim_offset)
+            blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, settings.anim_offset, global_scale)
 
         _(); del _
 

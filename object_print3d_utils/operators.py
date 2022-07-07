@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8-80 compliant>
 
@@ -738,6 +722,74 @@ class MESH_OT_print3d_scale_to_bounds(Operator):
 
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
+
+
+class MESH_OT_print3d_align_to_xy(Operator):
+    bl_idname = "mesh.print3d_align_to_xy"
+    bl_label = "Align (rotate) object to XY plane"
+    bl_description = (
+        "Rotates entire object (not mesh) so the selected faces/vertices lie, on average, parallel to the XY plane "
+        "(it does not adjust Z location)"
+    )
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # FIXME: Undo is inconsistent.
+        # FIXME: Would be nicer if rotate could pick some object-local axis.
+
+        from mathutils import Vector
+
+        print_3d = context.scene.print_3d
+        face_areas = print_3d.use_alignxy_face_area
+
+        self.context = context
+        mode_orig = context.mode
+        skip_invalid = []
+
+        for obj in context.selected_objects:
+            orig_loc = obj.location.copy()
+            orig_scale = obj.scale.copy()
+
+            # When in edit mode, do as the edit mode does.
+            if mode_orig == 'EDIT_MESH':
+                bm = bmesh.from_edit_mesh(obj.data)
+                faces = [f for f in bm.faces if f.select]
+            else:
+                faces = [p for p in obj.data.polygons if p.select]
+
+            if not faces:
+                skip_invalid.append(obj.name)
+                continue
+
+            # Rotate object so average normal of selected faces points down.
+            normal = Vector((0.0, 0.0, 0.0))
+            if face_areas:
+                for face in faces:
+                    normal += (face.normal * face.calc_area())
+            else:
+                for face in faces:
+                    normal += face.normal
+            normal = normal.normalized()
+            normal.rotate(obj.matrix_world)  # local -> world.
+            offset = normal.rotation_difference(Vector((0.0, 0.0, -1.0)))
+            offset = offset.to_matrix().to_4x4()
+            obj.matrix_world = offset @ obj.matrix_world
+            obj.scale = orig_scale
+            obj.location = orig_loc
+
+        if len(skip_invalid) > 0:
+            for name in skip_invalid:
+                print(f"Align to XY: Skipping object {name}. No faces selected.")
+            if len(skip_invalid) == 1:
+                self.report({'WARNING'}, "Skipping object. No faces selected" % skip_invalid[0])
+            else:
+                self.report({'WARNING'}, "Skipping some objects. No faces selected. See terminal")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        if context.mode not in {'EDIT_MESH', 'OBJECT'}:
+            return {'CANCELLED'}
+        return self.execute(context)
 
 
 # ------

@@ -1,27 +1,11 @@
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# <pep8-80 compliant>
 
 __author__ = "Nutti <nutti.metro@gmail.com>"
 __status__ = "production"
-__version__ = "6.5"
-__date__ = "6 Mar 2021"
+__version__ = "6.6"
+__date__ = "22 Apr 2022"
 
 import bpy
 from mathutils import Vector
@@ -191,7 +175,8 @@ class MUV_OT_AlignUVCursor(bpy.types.Operator):
                     uv_layer = bm.loops.layers.uv.verify()
 
                     for f in bm.faces:
-                        if not f.select:
+                        if (not context.tool_settings.use_uv_select_sync and
+                                not f.select):
                             continue
                         for l in f.loops:
                             uv = l[uv_layer].uv
@@ -220,18 +205,30 @@ class MUV_OT_AlignUVCursor(bpy.types.Operator):
                         return None
                     uv_layer = bm.loops.layers.uv.verify()
 
-                    for f in bm.faces:
-                        if not f.select:
-                            continue
-                        for l in f.loops:
-                            if not l[uv_layer].select:
+                    if context.tool_settings.use_uv_select_sync:
+                        for v in bm.verts:
+                            if not v.select:
                                 continue
-                            uv = l[uv_layer].uv
-                            max_.x = max(max_.x, uv.x)
-                            max_.y = max(max_.y, uv.y)
-                            min_.x = min(min_.x, uv.x)
-                            min_.y = min(min_.y, uv.y)
-                            no_selected_face = False
+                            for l in v.link_loops:
+                                uv = l[uv_layer].uv
+                                max_.x = max(max_.x, uv.x)
+                                max_.y = max(max_.y, uv.y)
+                                min_.x = min(min_.x, uv.x)
+                                min_.y = min(min_.y, uv.y)
+                                no_selected_face = False
+                    else:
+                        for f in bm.faces:
+                            if not f.select:
+                                continue
+                            for l in f.loops:
+                                if not l[uv_layer].select:
+                                    continue
+                                uv = l[uv_layer].uv
+                                max_.x = max(max_.x, uv.x)
+                                max_.y = max(max_.y, uv.y)
+                                min_.x = min(min_.x, uv.x)
+                                min_.y = min(min_.y, uv.y)
+                                no_selected_face = False
             if no_selected_face:
                 max_ = Vector((1.0, 1.0))
                 min_ = Vector((0.0, 0.0))

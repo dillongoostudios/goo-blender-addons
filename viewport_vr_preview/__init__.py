@@ -1,28 +1,12 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
 bl_info = {
     "name": "VR Scene Inspection",
     "author": "Julian Eisel (Severin), Sebastian Koenig, Peter Kim (muxed-reality)",
-    "version": (0, 10, 0),
-    "blender": (3, 0, 0),
+    "version": (0, 11, 0),
+    "blender": (3, 2, 0),
     "location": "3D View > Sidebar > VR",
     "description": ("View the viewport with virtual reality glasses "
                     "(head-mounted displays)"),

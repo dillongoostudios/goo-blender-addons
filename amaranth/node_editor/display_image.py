@@ -1,16 +1,4 @@
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
 """
 Display Active Image Node on Image Editor
 
@@ -38,8 +26,12 @@ image_nodes = ("CompositorNodeRLayers",
 class AMTH_NODE_OT_show_active_node_image(bpy.types.Operator):
     """Show active image node image in the image editor"""
     bl_idname = "node.show_active_node_image"
-    bl_label = "Show Active Node Node"
+    bl_label = "Preview Image from Node"
     bl_options = {"UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_node is not None
 
     def execute(self, context):
         return {'FINISHED'}
@@ -47,7 +39,7 @@ class AMTH_NODE_OT_show_active_node_image(bpy.types.Operator):
     def invoke(self, context, event):
         mlocx = event.mouse_region_x
         mlocy = event.mouse_region_y
-        select_node = bpy.ops.node.select(mouse_x=mlocx, mouse_y=mlocy, extend=False)
+        select_node = bpy.ops.node.select(location=(mlocx, mlocy), extend=False)
 
         if 'FINISHED' in select_node:  # Only run if we're clicking on a node
             get_addon = "amaranth" in context.preferences.addons.keys()

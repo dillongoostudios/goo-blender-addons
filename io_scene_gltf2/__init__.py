@@ -1,21 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (1, 8, 19),
+    "version": (3, 2, 43),
     'blender': (3, 1, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
@@ -298,13 +287,6 @@ class ExportGLTF2_Base:
         default=False
     )
 
-    # keep it for compatibility (for now)
-    export_selected: BoolProperty(
-        name='Selected Objects',
-        description='Export selected objects only',
-        default=False
-    )
-
     use_selection: BoolProperty(
         name='Selected Objects',
         description='Export selected objects only',
@@ -326,6 +308,12 @@ class ExportGLTF2_Base:
     use_active_collection: BoolProperty(
         name='Active Collection',
         description='Export objects in the active collection only',
+        default=False
+    )
+
+    use_active_scene: BoolProperty(
+        name='Active Scene',
+        description='Export active scene only',
         default=False
     )
 
@@ -393,10 +381,10 @@ class ExportGLTF2_Base:
     optimize_animation_size: BoolProperty(
         name='Optimize Animation Size',
         description=(
-            "Reduces exported filesize by removing duplicate keyframes"
-            "Can cause problems with stepped animation"
+            "Reduce exported file-size by removing duplicate keyframes"
+            "(can cause problems with stepped animation)"
         ),
-        default=True
+        default=False
     )
 
     export_current_frame: BoolProperty(
@@ -473,11 +461,6 @@ class ExportGLTF2_Base:
         self.will_save_settings = False
         if settings:
             try:
-                if 'export_selected' in settings.keys(): # Back compatibility for export_selected --> use_selection
-                    setattr(self, "use_selection", settings['export_selected'])
-                    settings["use_selection"] = settings['export_selected']
-                    del settings['export_selected']
-                    print("export_selected is now renamed use_selection, and will be deleted in a few release")
                 for (k, v) in settings.items():
                     setattr(self, k, v)
                 self.will_save_settings = True
@@ -508,14 +491,13 @@ class ExportGLTF2_Base:
             'use_active_collection',
             'use_mesh_edges',
             'use_mesh_vertices',
+            'use_active_scene',
         ]
         all_props = self.properties
         export_props = {
             x: getattr(self, x) for x in dir(all_props)
             if (x.startswith("export_") or x in exceptional) and all_props.get(x) is not None
         }
-        if 'export_selected' in export_props.keys():
-            del export_props['export_selected'] # Do not save this property, only here for backward compatibility
         context.scene[self.scene_key] = export_props
 
     def execute(self, context):
@@ -565,18 +547,13 @@ class ExportGLTF2_Base:
         export_settings['gltf_colors'] = self.export_colors
         export_settings['gltf_cameras'] = self.export_cameras
 
-        # compatibility after renaming export_selected to use_selection
-        if self.export_selected is True:
-            self.report({"WARNING"}, "export_selected is now renamed use_selection, and will be deleted in a few release")
-            export_settings['gltf_selected'] = self.export_selected
-        else:
-            export_settings['gltf_selected'] = self.use_selection
 
         export_settings['gltf_visible'] = self.use_visible
         export_settings['gltf_renderable'] = self.use_renderable
         export_settings['gltf_active_collection'] = self.use_active_collection
+        export_settings['gltf_active_scene'] = self.use_active_scene
 
-        # export_settings['gltf_selected'] = self.use_selection This can be uncomment when removing compatibility of export_selected
+        export_settings['gltf_selected'] = self.use_selection
         export_settings['gltf_layers'] = True  # self.export_layers
         export_settings['gltf_extras'] = self.export_extras
         export_settings['gltf_yup'] = self.export_yup
@@ -713,6 +690,7 @@ class GLTF_PT_export_include(bpy.types.Panel):
         col.prop(operator, 'use_visible')
         col.prop(operator, 'use_renderable')
         col.prop(operator, 'use_active_collection')
+        col.prop(operator, 'use_active_scene')
 
         col = layout.column(heading = "Data", align = True)
         col.prop(operator, 'export_extras')
@@ -890,6 +868,8 @@ class GLTF_PT_export_animation_export(bpy.types.Panel):
         row = layout.row()
         row.active = operator.export_force_sampling
         row.prop(operator, 'export_def_bones')
+        if operator.export_force_sampling is False and operator.export_def_bones is True:
+            layout.label(text="Export only deformation bones is not possible when not sampling animation")
 
 
 class GLTF_PT_export_animation_shapekeys(bpy.types.Panel):
@@ -1180,6 +1160,20 @@ class ImportGLTF2(Operator, ImportHelper):
             self.loglevel = logging.NOTSET
 
 
+class GLTF_AddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    settings_node_ui : bpy.props.BoolProperty(
+            default= False,
+            description="Displays glTF Settings node in Shader Editor (Menu Add > Ouput)"
+            )
+
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.prop(self, "settings_node_ui", text="Shader Editor Add-ons")
+
 def menu_func_import(self, context):
     self.layout.operator(ImportGLTF2.bl_idname, text='glTF 2.0 (.glb/.gltf)')
 
@@ -1197,14 +1191,18 @@ classes = (
     GLTF_PT_export_animation_skinning,
     GLTF_PT_export_user_extensions,
     ImportGLTF2,
-    GLTF_PT_import_user_extensions
+    GLTF_PT_import_user_extensions,
+    GLTF_AddonPreferences
 )
 
 
 def register():
+    import io_scene_gltf2.blender.com.gltf2_blender_ui as blender_ui
     for c in classes:
         bpy.utils.register_class(c)
     # bpy.utils.register_module(__name__)
+
+    blender_ui.register()
 
     # add to the export / import menu
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
@@ -1212,6 +1210,7 @@ def register():
 
 
 def unregister():
+    import io_scene_gltf2.blender.com.gltf2_blender_ui as blender_ui
     for c in classes:
         bpy.utils.unregister_class(c)
     for f in exporter_extension_panel_unregister_functors:
@@ -1221,6 +1220,8 @@ def unregister():
     for f in importer_extension_panel_unregister_functors:
         f()
     importer_extension_panel_unregister_functors.clear()
+
+    blender_ui.unregister()
 
     # bpy.utils.unregister_module(__name__)
 

@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import bpy
 import typing
@@ -20,9 +9,40 @@ from io_scene_gltf2.blender.exp import gltf2_blender_gather_animation_channels
 from io_scene_gltf2.io.com.gltf2_io_debug import print_console
 from ..com.gltf2_blender_extras import generate_extras
 from io_scene_gltf2.io.exp.gltf2_io_user_extensions import export_user_extensions
+from io_scene_gltf2.blender.exp.gltf2_blender_gather_tree import VExportNode
+from ..com.gltf2_blender_data_path import is_bone_anim_channel
 
 
-def gather_animations(blender_object: bpy.types.Object,
+def __gather_channels_baked(obj_uuid, export_settings):
+    channels = []
+
+    # If no animation in file, no need to bake
+    if len(bpy.data.actions) == 0:
+        return None
+
+    start_frame = min([v[0] for v in [a.frame_range for a in bpy.data.actions]])
+    end_frame = max([v[1] for v in [a.frame_range for a in bpy.data.actions]])
+
+    for p in ["location", "rotation_quaternion", "scale"]:
+        channel = gltf2_blender_gather_animation_channels.gather_animation_channel(
+            obj_uuid,
+            (),
+            export_settings,
+            None,
+            p,
+            start_frame,
+            end_frame,
+            False,
+            obj_uuid, # Use obj uuid as action name for caching
+            None,
+            False #If Object is not animated, don't keep animation for this channel
+            )
+        if channel is not None:
+            channels.append(channel)
+
+    return channels if len(channels) > 0 else None
+
+def gather_animations(  obj_uuid: int,
                         tracks: typing.Dict[str, typing.List[int]],
                         offset: int,
                         export_settings) -> typing.Tuple[typing.List[gltf2_io.Animation], typing.Dict[str, typing.List[int]]]:
@@ -35,11 +55,37 @@ def gather_animations(blender_object: bpy.types.Object,
     """
     animations = []
 
+    blender_object = export_settings['vtree'].nodes[obj_uuid].blender_object
+
     # Collect all 'actions' affecting this object. There is a direct mapping between blender actions and glTF animations
     blender_actions = __get_blender_actions(blender_object, export_settings)
 
-    # save the current active action of the object, if any
-    # We will restore it after export
+    if len([a for a in blender_actions if a[2] == "OBJECT"]) == 0:
+        # No TRS animation are found for this object.
+        # But we need to bake, in case we export selection
+        # (Only when force sampling is ON)
+        # If force sampling is OFF, can lead to inconsistant export anyway
+        if export_settings['gltf_selected'] is True and blender_object.type != "ARMATURE" and export_settings['gltf_force_sampling'] is True:
+            channels = __gather_channels_baked(obj_uuid, export_settings)
+            if channels is not None:
+                animation = gltf2_io.Animation(
+                        channels=channels,
+                        extensions=None, # as other animations
+                        extras=None, # Because there is no animation to get extras from
+                        name=blender_object.name, # Use object name as animation name
+                        samplers=[]
+                    )
+
+                __link_samplers(animation, export_settings)
+                if animation is not None:
+                    animations.append(animation)
+        elif export_settings['gltf_selected'] is True and blender_object.type == "ARMATURE":
+            # We need to bake all bones. Because some bone can have some constraints linking to
+            # some other armature bones, for example
+            #TODO
+            pass
+
+
     current_action = None
     if blender_object.animation_data and blender_object.animation_data.action:
         current_action = blender_object.animation_data.action
@@ -55,6 +101,11 @@ def gather_animations(blender_object: bpy.types.Object,
     # Remove any tweak mode. Restore after export
     if blender_object.animation_data:
         restore_tweak_mode = blender_object.animation_data.use_tweak_mode
+
+    # Remove use of NLA. Restore after export
+    if blender_object.animation_data:
+        current_use_nla = blender_object.animation_data.use_nla
+        blender_object.animation_data.use_nla = False
 
     # Export all collected actions.
     for blender_action, track_name, on_type in blender_actions:
@@ -74,7 +125,7 @@ def gather_animations(blender_object: bpy.types.Object,
 
         # No need to set active shapekeys animations, this is needed for bone baking
 
-        animation = __gather_animation(blender_action, blender_object, export_settings)
+        animation = __gather_animation(obj_uuid, blender_action, export_settings)
         if animation is not None:
             animations.append(animation)
 
@@ -99,24 +150,29 @@ def gather_animations(blender_object: bpy.types.Object,
         if solo_track is not None:
             solo_track.is_solo = True
         blender_object.animation_data.use_tweak_mode = restore_tweak_mode
+        blender_object.animation_data.use_nla = current_use_nla
+
     return animations, tracks
 
 
-def __gather_animation(blender_action: bpy.types.Action,
-                       blender_object: bpy.types.Object,
-                       export_settings
+def __gather_animation( obj_uuid: int,
+                        blender_action: bpy.types.Action,
+                        export_settings
                        ) -> typing.Optional[gltf2_io.Animation]:
+
+    blender_object = export_settings['vtree'].nodes[obj_uuid].blender_object
+
     if not __filter_animation(blender_action, blender_object, export_settings):
         return None
 
     name = __gather_name(blender_action, blender_object, export_settings)
     try:
         animation = gltf2_io.Animation(
-            channels=__gather_channels(blender_action, blender_object, export_settings),
+            channels=__gather_channels(obj_uuid, blender_action, export_settings),
             extensions=__gather_extensions(blender_action, blender_object, export_settings),
             extras=__gather_extras(blender_action, blender_object, export_settings),
             name=name,
-            samplers=__gather_samplers(blender_action, blender_object, export_settings)
+            samplers=__gather_samplers(obj_uuid, blender_action, export_settings)
         )
     except RuntimeError as error:
         print_console("WARNING", "Animation '{}' could not be exported. Cause: {}".format(name, error))
@@ -145,12 +201,12 @@ def __filter_animation(blender_action: bpy.types.Action,
     return True
 
 
-def __gather_channels(blender_action: bpy.types.Action,
-                      blender_object: bpy.types.Object,
+def __gather_channels(obj_uuid: int,
+                      blender_action: bpy.types.Action,
                       export_settings
                       ) -> typing.List[gltf2_io.AnimationChannel]:
     return gltf2_blender_gather_animation_channels.gather_animation_channels(
-        blender_action, blender_object, export_settings)
+        obj_uuid, blender_action, export_settings)
 
 
 def __gather_extensions(blender_action: bpy.types.Action,
@@ -177,8 +233,8 @@ def __gather_name(blender_action: bpy.types.Action,
     return blender_action.name
 
 
-def __gather_samplers(blender_action: bpy.types.Action,
-                      blender_object: bpy.types.Object,
+def __gather_samplers(obj_uuid: str,
+                      blender_action: bpy.types.Action,
                       export_settings
                       ) -> typing.List[gltf2_io.AnimationSampler]:
     # We need to gather the samplers after gathering all channels --> populate this list in __link_samplers
@@ -262,6 +318,22 @@ def __get_blender_actions(blender_object: bpy.types.Object,
                         blender_tracks[strip.action.name] = track.name # Always set after possible active action -> None will be overwrite
                         action_on_type[strip.action.name] = "SHAPEKEY"
 
+    # If there are only 1 armature, include all animations, even if not in NLA
+    if blender_object.type == "ARMATURE":
+        if len(export_settings['vtree'].get_all_node_of_type(VExportNode.ARMATURE)) == 1:
+            # Keep all actions on objects (no Shapekey animation)
+            for act in [a for a in bpy.data.actions if a.id_root == "OBJECT"]:
+                # We need to check this is an armature action
+                # Checking that at least 1 bone is animated
+                if not __is_armature_action(act):
+                    continue
+                # Check if this action is already taken into account
+                if act.name in blender_tracks.keys():
+                    continue
+                blender_actions.append(act)
+                blender_tracks[act.name] = None
+                action_on_type[act.name] = "OBJECT"
+
     export_user_extensions('gather_actions_hook', export_settings, blender_object, blender_actions, blender_tracks, action_on_type)
 
     # Remove duplicate actions.
@@ -270,3 +342,10 @@ def __get_blender_actions(blender_object: bpy.types.Object,
     blender_actions.sort(key = lambda a: a.name.lower())
 
     return [(blender_action, blender_tracks[blender_action.name], action_on_type[blender_action.name]) for blender_action in blender_actions]
+
+
+def __is_armature_action(blender_action) -> bool:
+    for fcurve in blender_action.fcurves:
+        if is_bone_anim_channel(fcurve.data_path):
+            return True
+    return False

@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -61,7 +45,7 @@ def imageConvertCompat(path):
 # rotation first defines axis then amount in radians
 
 
-# =============================== VRML Spesific
+# =============================== VRML Specific
 
 def vrml_split_fields(value):
     """
@@ -2023,23 +2007,18 @@ def importMesh_IndexedFaceSet(geom, ancestry):
                     for v in f
                     for co in tex_coord_points[v]]
     else:
-        x_min = x_max = y_min = y_max = z_min = z_max = None
+        x_min = y_min = z_min =  math.inf
+        x_max = y_max = z_max = -math.inf
         for f in faces:
             # Unused vertices don't participate in size; X3DOM does so
             for v in f:
                 (x, y, z) = points[v]
-                if x_min is None or x < x_min:
-                    x_min = x
-                if x_max is None or x > x_max:
-                    x_max = x
-                if y_min is None or y < y_min:
-                    y_min = y
-                if y_max is None or y > y_max:
-                    y_max = y
-                if z_min is None or z < z_min:
-                    z_min = z
-                if z_max is None or z > z_max:
-                    z_max = z
+                x_min = min(x_min, x)
+                x_max = max(x_max, x)
+                y_min = min(y_min, y)
+                y_max = max(y_max, y)
+                z_min = min(z_min, z)
+                z_max = max(z_max, z)
 
         mins = (x_min, y_min, z_min)
         deltas = (x_max - x_min, y_max - y_min, z_max - z_min)

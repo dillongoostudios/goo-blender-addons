@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import struct
 import numpy as np
@@ -87,6 +76,37 @@ class BinaryData():
             array.flags.writeable = False
 
         return array
+
+
+    @staticmethod
+    def decode_accessor_internal(accessor):
+        # Is use internally when accessor binary data is not yet in a glTF buffer_view
+        # MAT2/3 have special alignment requirements that aren't handled. But it
+        # doesn't matter because nothing uses them.
+        assert accessor.type not in ['MAT2', 'MAT3']
+
+        dtype = ComponentType.to_numpy_dtype(accessor.component_type)
+        component_nb = DataType.num_elements(accessor.type)
+
+        buffer_data = accessor.buffer_view.data
+
+        accessor_offset = accessor.byte_offset or 0
+        buffer_data = buffer_data[accessor_offset:]
+
+        bytes_per_elem = dtype(1).nbytes
+        default_stride = bytes_per_elem * component_nb
+        stride = default_stride
+
+        array = np.frombuffer(
+                    buffer_data,
+                    dtype=np.dtype(dtype).newbyteorder('<'),
+                    count=accessor.count * component_nb,
+                )
+        array = array.reshape(accessor.count, component_nb)
+
+        return array
+
+
 
     @staticmethod
     def decode_accessor_obj(gltf, accessor):

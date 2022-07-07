@@ -1,19 +1,4 @@
-### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 3
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Contact for more information about the Addon:
 # Email: germano.costa@ig.com.br
@@ -21,11 +6,11 @@
 bl_info = {
     "name": "Snap_Utilities_Line",
     "author": "Germano Cavalcante",
-    "version": (6, 9, 5),
-    "blender": (3, 0, 0),
+    "version": (6, 7, 0),
+    "blender": (3, 2, 0),
     "location": "View3D > TOOLS > Line Tool",
     "description": "Extends Blender Snap controls",
-    "doc_url" : "{BLENDER_MANUAL_URL}/addons/mesh/snap_utilities_line.html",
+    "doc_url": "{BLENDER_MANUAL_URL}/addons/mesh/snap_utilities_line.html",
     "category": "Mesh",
 }
 
@@ -43,15 +28,19 @@ else:
     from . import op_line
     from . import keys
 
+# autopep8: off
 import bpy
 from bpy.utils.toolsystem import ToolDef
+# autopep8: on
 
 if not __package__:
     __package__ = "mesh_snap_utilities_line"
 
+
 @ToolDef.from_fn
 def tool_line():
     import os
+
     def draw_settings(context, layout, tool):
         addon_prefs = context.preferences.addons[__package__].preferences
 
@@ -75,7 +64,7 @@ def tool_line():
         ),
         icon=os.path.join(icons_dir, "ops.mesh.snap_utilities_line"),
         widget="MESH_GGT_snap_point",
-        #operator="mesh.snap_utilities_line",
+        # operator="mesh.snap_utilities_line",
         keymap=keys.km_tool_snap_utilities_line,
         draw_settings=draw_settings,
     )
@@ -106,7 +95,7 @@ def register_snap_tools():
 def unregister_snap_tools():
     tools = get_tool_list('VIEW_3D', 'EDIT_MESH')
 
-    index = tools.index(tool_line) - 1 #None
+    index = tools.index(tool_line) - 1  # None
     tools.pop(index)
     tools.remove(tool_line)
 
@@ -124,11 +113,15 @@ def register_keymaps():
 
     # TODO: find the user defined tool_mouse.
     from bl_keymap_utils.io import keyconfig_init_from_data
-    keyconfig_init_from_data(kc_defaultconf, keys.generate_empty_snap_utilities_tools_keymaps())
-    keyconfig_init_from_data(kc_addonconf, keys.generate_snap_utilities_keymaps())
+    keyconfig_init_from_data(
+        kc_defaultconf, keys.generate_empty_snap_utilities_tools_keymaps())
+    keyconfig_init_from_data(
+        kc_addonconf, keys.generate_snap_utilities_keymaps())
 
     #snap_modalkeymap = kc_addonconf.keymaps.find(keys.km_snap_utilities_modal_keymap)
-    #snap_modalkeymap.assign("MESH_OT_snap_utilities_line")
+    # snap_modalkeymap.assign("MESH_OT_snap_utilities_line")
+
+
 def unregister_keymaps():
     keyconfigs = bpy.context.window_manager.keyconfigs
     defaultmap = getattr(keyconfigs.get("Blender"), "keymaps", None)
@@ -166,6 +159,7 @@ classes = (
     widgets.SnapPointWidget,
     widgets.SnapPointWidgetGroup,
 )
+
 
 def register():
     for cls in classes:

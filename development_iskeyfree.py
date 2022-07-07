@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # PEP8 compliant (https://www.python.org/dev/peps/pep-0008)
 
@@ -146,9 +130,8 @@ class MyChecker():
             "LEFTMOUSE", "MIDDLEMOUSE", "RIGHTMOUSE", "BUTTON4MOUSE", "BUTTON5MOUSE", "BUTTON6MOUSE",
             "BUTTON7MOUSE",
             "MOUSEMOVE", "INBETWEEN_MOUSEMOVE", "TRACKPADPAN", "TRACKPADZOOM",
-            "MOUSEROTATE", "WHEELUPMOUSE", "WHEELDOWNMOUSE", "WHEELINMOUSE", "WHEELOUTMOUSE", "EVT_TWEAK_L",
-            "EVT_TWEAK_M", "EVT_TWEAK_R", "A", "B", "C", "D", "E", "F", "G", "H",
-            "I", "J",
+            "MOUSEROTATE", "WHEELUPMOUSE", "WHEELDOWNMOUSE", "WHEELINMOUSE", "WHEELOUTMOUSE",
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
             "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "ZERO", "ONE", "TWO",
             "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "LEFT_CTRL", "LEFT_ALT", "LEFT_SHIFT",
             "RIGHT_ALT",
@@ -319,9 +302,6 @@ class IskeyFreeProperties(PropertyGroup):
             ("WHEELDOWNMOUSE", "WHEELDOWNMOUSE", ""),
             ("WHEELINMOUSE", "WHEELINMOUSE", ""),
             ("WHEELOUTMOUSE", "WHEELOUTMOUSE", ""),
-            ("EVT_TWEAK_L", "EVT_TWEAK_L", ""),
-            ("EVT_TWEAK_M", "EVT_TWEAK_M", ""),
-            ("EVT_TWEAK_R", "EVT_TWEAK_R", ""),
             ("A", "A", ""),
             ("B", "B", ""),
             ("C", "C", ""),

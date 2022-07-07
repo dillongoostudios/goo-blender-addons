@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 """
 Pose Library - operators.
@@ -451,7 +435,7 @@ class POSELIB_OT_apply_pose_asset_for_keymap(Operator):
 
 class POSELIB_OT_convert_old_poselib(Operator):
     bl_idname = "poselib.convert_old_poselib"
-    bl_label = "Convert Old-Style Pose Library"
+    bl_label = "Convert Legacy Pose Library"
     bl_description = "Create a pose asset for each pose marker in the current action"
     bl_options = {"REGISTER", "UNDO"}
 
@@ -462,7 +446,7 @@ class POSELIB_OT_convert_old_poselib(Operator):
             cls.poll_message_set("Active object has no Action")
             return False
         if not action.pose_markers:
-            cls.poll_message_set("Action %r is not a old-style pose library" % action.name)
+            cls.poll_message_set("Action %r is not a legacy pose library" % action.name)
             return False
         return True
 
@@ -480,11 +464,46 @@ class POSELIB_OT_convert_old_poselib(Operator):
         return {'FINISHED'}
 
 
+class POSELIB_OT_convert_old_object_poselib(Operator):
+    bl_idname = "poselib.convert_old_object_poselib"
+    bl_label = "Convert Legacy Pose Library"
+    bl_description = "Create a pose asset for each pose marker in this legacy pose library data-block"
+
+    # Mark this one as "internal", as it converts `context.object.pose_library`
+    # instead of its current animation Action.
+    bl_options = {"REGISTER", "UNDO", "INTERNAL"}
+
+    @classmethod
+    def poll(cls, context: Context) -> bool:
+        action = context.object and context.object.pose_library
+        if not action:
+            cls.poll_message_set("Active object has no pose library Action")
+            return False
+        if not action.pose_markers:
+            cls.poll_message_set("Action %r is not a legacy pose library" % action.name)
+            return False
+        return True
+
+    def execute(self, context: Context) -> Set[str]:
+        from . import conversion
+
+        old_poselib = context.object.pose_library
+        new_actions = conversion.convert_old_poselib(old_poselib)
+
+        if not new_actions:
+            self.report({'ERROR'}, "Unable to convert to pose assets")
+            return {'CANCELLED'}
+
+        self.report({'INFO'}, "Converted %d poses to pose assets" % len(new_actions))
+        return {'FINISHED'}
+
+
 classes = (
     ASSET_OT_assign_action,
     POSELIB_OT_apply_pose_asset_for_keymap,
     POSELIB_OT_blend_pose_asset_for_keymap,
     POSELIB_OT_convert_old_poselib,
+    POSELIB_OT_convert_old_object_poselib,
     POSELIB_OT_copy_as_asset,
     POSELIB_OT_create_pose_asset,
     POSELIB_OT_paste_asset,

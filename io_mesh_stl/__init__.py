@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8-80 compliant>
 
@@ -59,6 +43,7 @@ from bpy.props import (
     CollectionProperty,
     EnumProperty,
     FloatProperty,
+    FloatVectorProperty,
 )
 from bpy_extras.io_utils import (
     ImportHelper,
@@ -243,6 +228,12 @@ class ExportSTL(Operator, ExportHelper):
             ('OBJECT', "Object", "Each object as a file"),
         ),
     )
+    global_space: FloatVectorProperty(
+        name="Global Space",
+        description="Export in this reference space",
+        subtype='MATRIX',
+        size=(4, 4),
+    )
 
     @property
     def check_extension(self):
@@ -265,7 +256,8 @@ class ExportSTL(Operator, ExportHelper):
                 "filter_glob",
                 "use_scene_unit",
                 "use_mesh_modifiers",
-                "batch_mode"
+                "batch_mode",
+                "global_space",
             ),
         )
 
@@ -284,6 +276,9 @@ class ExportSTL(Operator, ExportHelper):
             to_forward=self.axis_forward,
             to_up=self.axis_up,
         ).to_4x4() @ Matrix.Scale(global_scale, 4)
+
+        if self.properties.is_property_set("global_space"):
+            global_matrix = global_matrix @ self.global_space.inverted()
 
         if self.batch_mode == 'OFF':
             faces = itertools.chain.from_iterable(

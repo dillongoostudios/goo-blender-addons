@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Copyright 2011, Ryan Inch
 
@@ -54,6 +38,12 @@ def update_qcd_view_edit_mode_hotkeys_status(self, context):
         qcd_init.register_qcd_view_edit_mode_hotkeys()
     else:
         qcd_init.unregister_qcd_view_edit_mode_hotkeys()
+
+def update_qcd_3dview_header_widget_status(self, context):
+    if self.enable_qcd_3dview_header_widget:
+        qcd_init.register_qcd_3dview_header_widget()
+    else:
+        qcd_init.unregister_qcd_3dview_header_widget()
 
 def get_tool_text(self):
     if self.tool_text_override:
@@ -204,7 +194,7 @@ class CMPreferences(AddonPreferences):
     # ENABLE QCD BOOLS
     enable_qcd: BoolProperty(
         name="QCD",
-        description="Enable/Disable QCD System.\nThe Quick Content Display system allows you to specify collections as QCD \"slots\" up to a maximum of 20. You can then interact with them through numerical hotkeys, a popup move widget, and a 3D View header widget",
+        description="Enable/Disable QCD System.\nThe Quick Content Display system allows you to specify collections as QCD \"slots\" up to a maximum of 20. You can then interact with them through numerical hotkeys, a popup move widget, and a 3D Viewport header widget",
         default=True,
         update=update_qcd_status,
         )
@@ -221,6 +211,13 @@ class CMPreferences(AddonPreferences):
         description="Enable/Disable the numerical hotkeys to view QCD slots in Edit Mode",
         default=False,
         update=update_qcd_view_edit_mode_hotkeys_status,
+        )
+
+    enable_qcd_3dview_header_widget: BoolProperty(
+        name="QCD 3D Viewport Header Widget",
+        description="Enable/Disable the 3D Viewport header widget.  This widget graphically represents the 20 QCD slots and allows you to interact with them through the GUI",
+        default=True,
+        update=update_qcd_3dview_header_widget_status,
         )
 
 
@@ -447,6 +444,7 @@ class CMPreferences(AddonPreferences):
 
         box.row().prop(self, "enable_qcd_view_hotkeys")
         box.row().prop(self, "enable_qcd_view_edit_mode_hotkeys")
+        box.row().prop(self, "enable_qcd_3dview_header_widget")
 
         box.row().label(text="QCD Move Widget")
 

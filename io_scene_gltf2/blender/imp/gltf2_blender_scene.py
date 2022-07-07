@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import bpy
 
@@ -47,12 +36,18 @@ class BlenderScene():
         BlenderNode.create_vnode(gltf, 'root')
 
         # User extensions before scene creation
-        import_user_extensions('gather_import_scene_after_nodes_hook', gltf, gltf.data.scenes[gltf.data.scene], scene)
+        gltf_scene = None
+        if gltf.data.scene is not None:
+            gltf_scene = gltf.data.scenes[gltf.data.scene]
+        import_user_extensions('gather_import_scene_after_nodes_hook', gltf, gltf_scene, scene)
 
-        # User extensions after scene creation
         BlenderScene.create_animations(gltf)
 
-        import_user_extensions('gather_import_scene_after_animation_hook', gltf, gltf.data.scenes[gltf.data.scene], scene)
+        # User extensions after scene creation
+        gltf_scene = None
+        if gltf.data.scene is not None:
+            gltf_scene = gltf.data.scenes[gltf.data.scene]
+        import_user_extensions('gather_import_scene_after_animation_hook', gltf, gltf_scene, scene)
 
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -62,6 +57,15 @@ class BlenderScene():
     @staticmethod
     def create_animations(gltf):
         """Create animations."""
+
+        # Use a class here, to be able to pass data by reference to hook (to be able to change them inside hook)
+        class IMPORT_animation_options:
+            def __init__(self, restore_first_anim: bool = True):
+                self.restore_first_anim = restore_first_anim
+
+        animation_options = IMPORT_animation_options()
+        import_user_extensions('gather_import_animations', gltf, gltf.data.animations, animation_options)
+
         if gltf.data.animations:
             # NLA tracks are added bottom to top, so create animations in
             # reverse so the first winds up on top
@@ -69,8 +73,9 @@ class BlenderScene():
                 BlenderAnimation.anim(gltf, anim_idx)
 
             # Restore first animation
-            anim_name = gltf.data.animations[0].track_name
-            BlenderAnimation.restore_animation(gltf, anim_name)
+            if animation_options.restore_first_anim:
+                anim_name = gltf.data.animations[0].track_name
+                BlenderAnimation.restore_animation(gltf, anim_name)
 
     @staticmethod
     def select_imported_objects(gltf):

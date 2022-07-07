@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
 
@@ -36,14 +20,23 @@ class GP_PT_sidebarPanel(bpy.types.Panel):
         layout.operator('gp.straight_stroke', icon ="CURVE_PATH")# IPO_LINEAR
 
 
-        # Expose Native view operators
-        # if context.scene.camera:
+        # Expose native view operators
         row = layout.row(align=True)
-        row.operator('view3d.zoom_camera_1_to_1', text = 'Zoom 1:1', icon = 'ZOOM_PREVIOUS')# FULLSCREEN_EXIT?
+        row.operator('view3d.zoom_camera_1_to_1', text = 'Zoom 1:1', icon = 'ZOOM_PREVIOUS') # FULLSCREEN_EXIT
         row.operator('view3d.view_center_camera', text = 'Zoom Fit', icon = 'FULLSCREEN_ENTER')
+
+        # Rotation save/load
         row = layout.row(align=True)
         row.operator('view3d.rotate_canvas_reset', text = 'Reset Rotation', icon = 'FILE_REFRESH')
         row.operator('view3d.rotate_canvas_set', text = 'Save Rotation', icon = 'DRIVER_ROTATIONAL_DIFFERENCE')
+
+        # View flip
+        if context.scene.camera and context.scene.camera.scale.x < 0:
+            row = layout.row(align=True)
+            row.operator('gp.camera_flip_x', text = 'Camera Mirror Flip', icon = 'MOD_MIRROR')
+            row.label(text='', icon='LOOP_BACK')
+        else:
+            layout.operator('gp.camera_flip_x', text = 'Camera Mirror Flip', icon = 'MOD_MIRROR')
 
 
 def menu_boxdeform_entry(self, context):

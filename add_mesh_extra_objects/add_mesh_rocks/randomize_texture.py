@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # This try block allows for the script to psudo-intelligently select the
 # appropriate random to use.  If Numpy's random is present it will use that.
 # If Numpy's random is not present, it will through a "module not found"
@@ -133,7 +135,7 @@ def randomizeTexture(texture, level=1):
     elif texture.type == 'VORONOI':
         metrics = ['DISTANCE', 'DISTANCE_SQUARED', 'MANHATTAN', 'CHEBYCHEV',
                    'MINKOVSKY_HALF', 'MINKOVSKY_FOUR', 'MINKOVSKY']
-        # Settings for first dispalcement level:
+        # Settings for first displacement level:
         if level == 0:
             tempInt = randint(0, 1)
             texture.distance_metric = metrics[tempInt]

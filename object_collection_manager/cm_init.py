@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Copyright 2011, Ryan Inch
 
@@ -132,6 +116,13 @@ def undo_redo_post_handler(dummy):
     internals.move_active = None
 
 
+@persistent
+def global_load_pre_handler(dummy):
+    internals.move_triggered = False
+    internals.move_selection.clear()
+    internals.move_active = None
+
+
 def menu_addition(self, context):
     layout = self.layout
 
@@ -196,6 +187,7 @@ def register_cm():
     bpy.app.handlers.depsgraph_update_post.append(depsgraph_update_post_handler)
     bpy.app.handlers.undo_post.append(undo_redo_post_handler)
     bpy.app.handlers.redo_post.append(undo_redo_post_handler)
+    bpy.app.handlers.load_pre.append(global_load_pre_handler)
 
     preferences = bpy.context.preferences.addons[__package__].preferences
     if preferences.enable_disable_objects_override:
@@ -218,6 +210,7 @@ def unregister_cm():
     bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post_handler)
     bpy.app.handlers.undo_post.remove(undo_redo_post_handler)
     bpy.app.handlers.redo_post.remove(undo_redo_post_handler)
+    bpy.app.handlers.load_pre.remove(global_load_pre_handler)
 
     del bpy.types.Scene.collection_manager
 

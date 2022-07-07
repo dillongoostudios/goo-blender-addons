@@ -1,19 +1,5 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 3
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 __all__ = ("SnapContext",)
 
 import gpu
@@ -349,6 +335,8 @@ class SnapContext():
         if clear_offscreen:
             self._offscreen.clear()
 
+        _Internal.gpu_Indices_use_clip_planes(self.rv3d, True)
+
     def tag_update_drawn_snap_object(self, snap_obj):
         if len(snap_obj.data) > 1:
             snap_obj.data[1].free()
@@ -373,9 +361,6 @@ class SnapContext():
         snap_obj.data.append(data)
 
         _Internal.gpu_Indices_restore_state()
-
-    def use_clip_planes(self, value):
-        _Internal.gpu_Indices_use_clip_planes(self.rv3d, value)
 
     def set_pixel_dist(self, dist_px):
         self._dist_px = int(dist_px)

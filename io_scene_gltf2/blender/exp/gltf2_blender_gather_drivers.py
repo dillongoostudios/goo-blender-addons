@@ -1,28 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 
 from io_scene_gltf2.blender.exp.gltf2_blender_gather_cache import skdriverdiscovercache, skdrivervalues
 from io_scene_gltf2.blender.com.gltf2_blender_data_path import get_target_object_path
 
-
 @skdriverdiscovercache
-def get_sk_drivers(blender_armature):
+def get_sk_drivers(blender_armature_uuid, export_settings):
+
+    blender_armature = export_settings['vtree'].nodes[blender_armature_uuid].blender_object
 
     drivers = []
 
-    for child in blender_armature.children:
+    # Take into account skinned mesh, and mesh parented to a bone of the armature
+    children_list = export_settings['vtree'].nodes[blender_armature_uuid].children.copy()
+    for bone in export_settings['vtree'].get_all_bones(blender_armature_uuid):
+        children_list.extend(export_settings['vtree'].nodes[bone].children)
+
+    for child_uuid in children_list:
+
+        if export_settings['vtree'].nodes[child_uuid].blender_type == "BONE":
+            continue
+
+        child = export_settings['vtree'].nodes[child_uuid].blender_object
+
         if not child.data:
             continue
         # child.data can be an armature - which has no shapekeys
@@ -74,13 +75,14 @@ def get_sk_drivers(blender_armature):
                 all_sorted_channels.append(existing_idx[i])
 
         if len(all_sorted_channels) > 0:
-            drivers.append((child, tuple(all_sorted_channels)))
+            drivers.append((child_uuid, tuple(all_sorted_channels)))
 
     return tuple(drivers)
 
 @skdrivervalues
-def get_sk_driver_values(blender_object, frame, fcurves):
+def get_sk_driver_values(blender_object_uuid, frame, fcurves, export_settings):
     sk_values = []
+    blender_object = export_settings['vtree'].nodes[blender_object_uuid].blender_object
     for f in [f for f in fcurves if f is not None]:
         sk_values.append(blender_object.data.shape_keys.path_resolve(get_target_object_path(f.data_path)).value)
 

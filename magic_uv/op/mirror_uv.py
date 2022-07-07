@@ -1,27 +1,11 @@
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# <pep8-80 compliant>
 
 __author__ = "Keith (Wahooney) Boshoff, Nutti <nutti.metro@gmail.com>"
 __status__ = "production"
-__version__ = "6.5"
-__date__ = "6 Mar 2021"
+__version__ = "6.6"
+__date__ = "22 Apr 2022"
 
 import bpy
 from bpy.props import (
@@ -39,16 +23,16 @@ from .. import common
 
 
 def _is_valid_context(context):
+    # only 'VIEW_3D' space is allowed to execute
+    if not common.is_valid_space(context, ['VIEW_3D']):
+        return False
+
     objs = common.get_uv_editable_objects(context)
     if not objs:
         return False
 
     # only edit mode is allowed to execute
     if context.object.mode != 'EDIT':
-        return False
-
-    # only 'VIEW_3D' space is allowed to execute
-    if not common.is_valid_space(context, ['VIEW_3D']):
         return False
 
     return True
@@ -267,15 +251,22 @@ class MUV_OT_MirrorUV(bpy.types.Operator):
                     # test if the vertices x values are the same sign
                     dst = _get_face_center(f_dst, transformed_verts)
                     src = _get_face_center(f_src, transformed_verts)
-                    if (dst.x > 0 and src.x > 0) or (dst.x < 0 and src.x < 0):
-                        continue
 
                     # invert source axis
                     if axis == 'X':
+                        if ((dst.x > 0 and src.x > 0) or
+                                (dst.x < 0 and src.x < 0)):
+                            continue
                         src.x = -src.x
                     elif axis == 'Y':
-                        src.y = -src.z
+                        if ((dst.y > 0 and src.y > 0) or
+                                (dst.y < 0 and src.y < 0)):
+                            continue
+                        src.y = -src.y
                     elif axis == 'Z':
+                        if ((dst.z > 0 and src.z > 0) or
+                                (dst.z < 0 and src.z < 0)):
+                            continue
                         src.z = -src.z
 
                     # do mirror UV

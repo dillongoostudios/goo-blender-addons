@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import typing
 import math
@@ -109,7 +98,7 @@ def swizzle_yup_value(value: typing.Any) -> typing.Any:
     return value
 
 
-def transform(v: typing.Union[Vector, Quaternion], data_path: str, transform: Matrix = Matrix.Identity(4)) -> typing \
+def transform(v: typing.Union[Vector, Quaternion], data_path: str, transform: Matrix = Matrix.Identity(4), need_rotation_correction: bool = False) -> typing \
         .Union[Vector, Quaternion]:
     """Manage transformations."""
     target = get_target_property_name(data_path)
@@ -127,25 +116,31 @@ def transform(v: typing.Union[Vector, Quaternion], data_path: str, transform: Ma
     if transform_func is None:
         raise RuntimeError("Cannot transform values at {}".format(data_path))
 
-    return transform_func(v, transform)
+    return transform_func(v, transform, need_rotation_correction)
 
 
-def transform_location(location: Vector, transform: Matrix = Matrix.Identity(4)) -> Vector:
+def transform_location(location: Vector, transform: Matrix = Matrix.Identity(4), need_rotation_correction:bool = False) -> Vector:
     """Transform location."""
+    correction = Quaternion((2**0.5/2, -2**0.5/2, 0.0, 0.0))
     m = Matrix.Translation(location)
+    if need_rotation_correction:
+        m @= correction.to_matrix().to_4x4()
     m = transform @ m
     return m.to_translation()
 
 
-def transform_rotation(rotation: Quaternion, transform: Matrix = Matrix.Identity(4)) -> Quaternion:
+def transform_rotation(rotation: Quaternion, transform: Matrix = Matrix.Identity(4), need_rotation_correction: bool = False) -> Quaternion:
     """Transform rotation."""
     rotation.normalize()
+    correction = Quaternion((2**0.5/2, -2**0.5/2, 0.0, 0.0))
     m = rotation.to_matrix().to_4x4()
+    if need_rotation_correction:
+        m @= correction.to_matrix().to_4x4()
     m = transform @ m
     return m.to_quaternion()
 
 
-def transform_scale(scale: Vector, transform: Matrix = Matrix.Identity(4)) -> Vector:
+def transform_scale(scale: Vector, transform: Matrix = Matrix.Identity(4), need_rotation_correction: bool  = False) -> Vector:
     """Transform scale."""
     m = Matrix.Identity(4)
     m[0][0] = scale.x
@@ -156,7 +151,7 @@ def transform_scale(scale: Vector, transform: Matrix = Matrix.Identity(4)) -> Ve
     return m.to_scale()
 
 
-def transform_value(value: Vector, _: Matrix = Matrix.Identity(4)) -> Vector:
+def transform_value(value: Vector, _: Matrix = Matrix.Identity(4), need_rotation_correction: bool = False) -> Vector:
     """Transform value."""
     return value
 

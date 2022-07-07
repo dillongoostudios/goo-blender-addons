@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -95,8 +79,11 @@ def vr_create_actions(context: bpy.context):
                 if amb.name == defaults.VRDefaultActionbindings.REVERB_G2.value:
                    if not scene.vr_actions_enable_reverb_g2:
                        continue
-                elif amb.name == defaults.VRDefaultActionbindings.COSMOS.value:
-                   if not scene.vr_actions_enable_cosmos:
+                elif amb.name == defaults.VRDefaultActionbindings.VIVE_COSMOS.value:
+                   if not scene.vr_actions_enable_vive_cosmos:
+                       continue
+                elif amb.name == defaults.VRDefaultActionbindings.VIVE_FOCUS.value:
+                   if not scene.vr_actions_enable_vive_focus:
                        continue
                 elif amb.name == defaults.VRDefaultActionbindings.HUAWEI.value:
                    if not scene.vr_actions_enable_huawei:
@@ -146,16 +133,20 @@ def register():
         default=False,
         update=vr_actions_use_gamepad_update,
     )
-    bpy.types.Scene.vr_actions_enable_cosmos = bpy.props.BoolProperty(
-        description="Enable bindings for the HTC Vive Cosmos controllers. Note that this may not be supported by all OpenXR runtimes",
-        default=False,
-    )
     bpy.types.Scene.vr_actions_enable_huawei = bpy.props.BoolProperty(
         description="Enable bindings for the Huawei controllers. Note that this may not be supported by all OpenXR runtimes",
         default=False,
     )
     bpy.types.Scene.vr_actions_enable_reverb_g2 = bpy.props.BoolProperty(
         description="Enable bindings for the HP Reverb G2 controllers. Note that this may not be supported by all OpenXR runtimes",
+        default=False,
+    )
+    bpy.types.Scene.vr_actions_enable_vive_cosmos = bpy.props.BoolProperty(
+        description="Enable bindings for the HTC Vive Cosmos controllers. Note that this may not be supported by all OpenXR runtimes",
+        default=False,
+    )
+    bpy.types.Scene.vr_actions_enable_vive_focus = bpy.props.BoolProperty(
+        description="Enable bindings for the HTC Vive Focus 3 controllers. Note that this may not be supported by all OpenXR runtimes",
         default=False,
     )
 
@@ -165,8 +156,9 @@ def register():
 def unregister():
     del bpy.types.Scene.vr_actions_enable
     del bpy.types.Scene.vr_actions_use_gamepad
-    del bpy.types.Scene.vr_actions_enable_cosmos
     del bpy.types.Scene.vr_actions_enable_huawei
     del bpy.types.Scene.vr_actions_enable_reverb_g2
+    del bpy.types.Scene.vr_actions_enable_vive_cosmos
+    del bpy.types.Scene.vr_actions_enable_vive_focus
 
     bpy.app.handlers.xr_session_start_pre.remove(vr_create_actions)

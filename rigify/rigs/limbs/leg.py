@@ -1,20 +1,4 @@
-#====================== BEGIN GPL LICENSE BLOCK ======================
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-#======================= END GPL LICENSE BLOCK ========================
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -114,9 +98,13 @@ class Rig(BaseLimbRig):
     #     Toe spin control.
     #   heel:
     #     Foot roll control
+    #   ik_toe:
+    #     If enabled, toe control for IK chain.
     # mch:
     #   heel[]:
     #     Chain of bones implementing foot roll.
+    #   ik_toe_parent:
+    #      If using split IK toe, parent of the IK toe control.
     #
     ####################################################
 
@@ -224,20 +212,34 @@ class Rig(BaseLimbRig):
     @stage.generate_bones
     def make_ik_toe_control(self):
         if self.use_ik_toe:
-            self.bones.ctrl.ik_toe = self.make_ik_toe_control_bone(self.bones.org.main[3])
+            toe = self.bones.org.main[3]
+            self.bones.ctrl.ik_toe = self.make_ik_toe_control_bone(toe)
+            self.bones.mch.ik_toe_parent = self.make_ik_toe_parent_mch_bone(toe)
 
     def make_ik_toe_control_bone(self, org):
         return self.copy_bone(org, make_derived_name(org, 'ctrl', '_ik'))
 
+    def make_ik_toe_parent_mch_bone(self, org):
+        return self.copy_bone(org, make_derived_name(org, 'mch', '_ik_parent'), scale=1/3)
+
     @stage.parent_bones
     def parent_ik_toe_control(self):
         if self.use_ik_toe:
-            self.set_bone_parent(self.bones.ctrl.ik_toe, self.get_mch_heel_toe_output())
+            mch = self.bones.mch
+            align_bone_orientation(self.obj, mch.ik_toe_parent, self.get_mch_heel_toe_output())
+
+            self.set_bone_parent(mch.ik_toe_parent, mch.ik_target, use_connect=True)
+            self.set_bone_parent(self.bones.ctrl.ik_toe, mch.ik_toe_parent)
 
     @stage.configure_bones
     def configure_ik_toe_control(self):
         if self.use_ik_toe:
             self.copy_bone_properties(self.bones.org.main[3], self.bones.ctrl.ik_toe, props=False)
+
+    @stage.rig_bones
+    def rig_ik_toe_control(self):
+        if self.use_ik_toe:
+            self.make_constraint(self.bones.mch.ik_toe_parent, 'COPY_TRANSFORMS', self.get_mch_heel_toe_output())
 
     @stage.generate_widgets
     def make_ik_toe_control_widget(self):
@@ -475,6 +477,10 @@ def create_sample(obj):
         pass
     try:
         pbone.rigify_parameters.extra_ik_toe = True
+    except AttributeError:
+        pass
+    try:
+        pbone.rigify_parameters.ik_local_location = False
     except AttributeError:
         pass
     pbone = obj.pose.bones[bones['shin.L']]

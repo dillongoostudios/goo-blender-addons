@@ -1,33 +1,19 @@
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# <pep8-80 compliant>
 
 __author__ = "Nutti <nutti.metro@gmail.com>"
 __status__ = "production"
-__version__ = "6.5"
-__date__ = "6 Mar 2021"
+__version__ = "6.6"
+__date__ = "22 Apr 2022"
 
 import bpy
 
 from ..op.copy_paste_uv_uvedit import (
     MUV_OT_CopyPasteUVUVEdit_CopyUV,
     MUV_OT_CopyPasteUVUVEdit_PasteUV,
+    MUV_OT_CopyPasteUVUVEdit_CopyUVIsland,
+    MUV_OT_CopyPasteUVUVEdit_PasteUVIsland,
 )
 from ..op.align_uv_cursor import MUV_OT_AlignUVCursor
 from ..op.align_uv import (
@@ -58,12 +44,21 @@ class MUV_MT_CopyPasteUV_UVEdit(bpy.types.Menu):
     bl_label = "Copy/Paste UV"
     bl_description = "Copy and Paste UV coordinate among object"
 
-    def draw(self, _):
+    def draw(self, context):
         layout = self.layout
+        sc = context.scene
 
+        layout.label(text="Face")
         layout.operator(MUV_OT_CopyPasteUVUVEdit_CopyUV.bl_idname, text="Copy")
         layout.operator(MUV_OT_CopyPasteUVUVEdit_PasteUV.bl_idname,
                         text="Paste")
+
+        layout.label(text="Island")
+        layout.operator(MUV_OT_CopyPasteUVUVEdit_CopyUVIsland.bl_idname,
+                        text="Copy")
+        ops = layout.operator(MUV_OT_CopyPasteUVUVEdit_PasteUVIsland.bl_idname,
+                              text="Paste")
+        ops.unique_target = sc.muv_copy_paste_uv_uvedit_unique_target
 
 
 @BlClassRegistry()
@@ -107,7 +102,8 @@ class MUV_MT_AlignUV(bpy.types.Menu):
         ops.group = sc.muv_align_uv_snap_point_group
         ops.target = sc.muv_align_uv_snap_point_target
 
-        ops = layout.operator(MUV_OT_AlignUV_SnapToEdge, text="Snap to Edge")
+        ops = layout.operator(MUV_OT_AlignUV_SnapToEdge.bl_idname,
+                              text="Snap to Edge")
         ops.group = sc.muv_align_uv_snap_edge_group
         ops.target_1 = sc.muv_align_uv_snap_edge_target_1
         ops.target_2 = sc.muv_align_uv_snap_edge_target_2

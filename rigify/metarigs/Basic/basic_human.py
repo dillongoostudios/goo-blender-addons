@@ -1,5 +1,6 @@
-import bpy
+# SPDX-License-Identifier: GPL-2.0-or-later
 
+import bpy
 
 from mathutils import Color
 
@@ -434,6 +435,10 @@ def create(obj):
     except AttributeError:
         pass
     try:
+        pbone.rigify_parameters.ik_local_location = False
+    except AttributeError:
+        pass
+    try:
         pbone.rigify_parameters.fk_layers = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     except AttributeError:
         pass
@@ -463,6 +468,10 @@ def create(obj):
         pass
     try:
         pbone.rigify_parameters.extra_ik_toe = True
+    except AttributeError:
+        pass
+    try:
+        pbone.rigify_parameters.ik_local_location = False
     except AttributeError:
         pass
     pbone = obj.pose.bones[bones['spine.002']]
@@ -626,6 +635,10 @@ def create(obj):
     pbone.rotation_mode = 'QUATERNION'
     pbone.bone.layers = [False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     try:
+        pbone.rigify_parameters.ik_local_location = False
+    except AttributeError:
+        pass
+    try:
         pbone.rigify_parameters.tweak_layers = [False, False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     except AttributeError:
         pass
@@ -641,6 +654,10 @@ def create(obj):
     pbone.lock_scale = (False, False, False)
     pbone.rotation_mode = 'QUATERNION'
     pbone.bone.layers = [False, False, False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+    try:
+        pbone.rigify_parameters.ik_local_location = False
+    except AttributeError:
+        pass
     try:
         pbone.rigify_parameters.tweak_layers = [False, False, False, False, False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     except AttributeError:

@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 #
 # Imports
@@ -18,6 +7,7 @@
 
 import json
 import struct
+from io_scene_gltf2.io.exp.gltf2_io_user_extensions import export_user_extensions
 
 #
 # Globals
@@ -30,13 +20,18 @@ from collections import OrderedDict
 
 
 def save_gltf(gltf, export_settings, encoder, glb_buffer):
-    indent = None
-    separators = (',', ':')
+    # Use a class here, to be able to pass data by reference to hook (to be able to change them inside hook)
+    class GlTF_format:
+        def __init__(self, indent, separators):
+            self.indent = indent
+            self.separators = separators
+
+    gltf_format = GlTF_format(None, (',', ':'))
 
     if export_settings['gltf_format'] != 'GLB':
-        indent = 4
+        gltf_format.indent = 4
         # The comma is typically followed by a newline, so no trailing whitespace is needed on it.
-        separators = (',', ' : ')
+        gltf_format.separators = (',', ' : ')
 
     sort_order = [
         "asset",
@@ -59,8 +54,11 @@ def save_gltf(gltf, export_settings, encoder, glb_buffer):
         "samplers",
         "buffers"
     ]
+
+    export_user_extensions('gather_gltf_encoded_hook', export_settings, gltf_format, sort_order)
+
     gltf_ordered = OrderedDict(sorted(gltf.items(), key=lambda item: sort_order.index(item[0])))
-    gltf_encoded = json.dumps(gltf_ordered, indent=indent, separators=separators, cls=encoder, allow_nan=False)
+    gltf_encoded = json.dumps(gltf_ordered, indent=gltf_format.indent, separators=gltf_format.separators, cls=encoder, allow_nan=False)
 
     #
 

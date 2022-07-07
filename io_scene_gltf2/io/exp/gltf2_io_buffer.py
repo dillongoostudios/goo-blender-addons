@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2018-2021 The glTF-Blender-IO authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import base64
 
@@ -21,8 +10,10 @@ from io_scene_gltf2.io.exp import gltf2_io_binary_data
 class Buffer:
     """Class representing binary data for use in a glTF file as 'buffer' property."""
 
-    def __init__(self, buffer_index=0):
+    def __init__(self, buffer_index=0, initial_data=None):
         self.__data = bytearray(b"")
+        if initial_data is not None:
+            self.__data = bytearray(initial_data.tobytes())
         self.__buffer_index = buffer_index
 
     def add_and_get_view(self, binary_data: gltf2_io_binary_data.BinaryData) -> gltf2_io.BufferView:

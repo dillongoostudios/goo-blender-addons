@@ -1,5 +1,6 @@
-import bpy
+# SPDX-License-Identifier: GPL-2.0-or-later
 
+import bpy
 
 from mathutils import Color
 
@@ -1485,7 +1486,7 @@ def create(obj):
     pbone.rotation_mode = 'QUATERNION'
     pbone.bone.layers = [False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     pbone = obj.pose.bones[bones['thigh.L']]
-    pbone.rigify_type = 'limbs.super_limb'
+    pbone.rigify_type = 'limbs.rear_paw'
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
@@ -1494,6 +1495,10 @@ def create(obj):
     pbone.bone.layers = [False, False, False, False, False, False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     try:
         pbone.rigify_parameters.limb_type = "paw"
+    except AttributeError:
+        pass
+    try:
+        pbone.rigify_parameters.ik_local_location = False
     except AttributeError:
         pass
     try:
@@ -1509,7 +1514,7 @@ def create(obj):
     except AttributeError:
         pass
     pbone = obj.pose.bones[bones['thigh.R']]
-    pbone.rigify_type = 'limbs.super_limb'
+    pbone.rigify_type = 'limbs.rear_paw'
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
@@ -1518,6 +1523,10 @@ def create(obj):
     pbone.bone.layers = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     try:
         pbone.rigify_parameters.limb_type = "paw"
+    except AttributeError:
+        pass
+    try:
+        pbone.rigify_parameters.ik_local_location = False
     except AttributeError:
         pass
     try:
@@ -1653,7 +1662,7 @@ def create(obj):
     pbone.rotation_mode = 'QUATERNION'
     pbone.bone.layers = [False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     pbone = obj.pose.bones[bones['upper_arm.L']]
-    pbone.rigify_type = 'limbs.super_limb'
+    pbone.rigify_type = 'limbs.front_paw'
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
@@ -1665,6 +1674,10 @@ def create(obj):
     except AttributeError:
         pass
     try:
+        pbone.rigify_parameters.ik_local_location = False
+    except AttributeError:
+        pass
+    try:
         pbone.rigify_parameters.fk_layers = [False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
     except AttributeError:
         pass
@@ -1673,7 +1686,7 @@ def create(obj):
     except AttributeError:
         pass
     pbone = obj.pose.bones[bones['upper_arm.R']]
-    pbone.rigify_type = 'limbs.super_limb'
+    pbone.rigify_type = 'limbs.front_paw'
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
@@ -1686,6 +1699,10 @@ def create(obj):
         pass
     try:
         pbone.rigify_parameters.tweak_layers = [False, False, False, False, False, False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+    except AttributeError:
+        pass
+    try:
+        pbone.rigify_parameters.ik_local_location = False
     except AttributeError:
         pass
     try:

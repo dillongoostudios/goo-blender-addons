@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -30,6 +14,11 @@ from bpy.types import (
     Panel,
     UIList,
 )
+# Add space_view3d.py to module search path for VIEW3D_PT_object_type_visibility import.  
+import os.path, sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../startup/bl_ui')))
+from space_view3d import VIEW3D_PT_object_type_visibility
+
 
 ### Session.
 class VIEW3D_PT_vr_session(Panel):
@@ -88,6 +77,15 @@ class VIEW3D_PT_vr_session_view(Panel):
         col.prop(session_settings, "show_selection", text="Selection")
         col.prop(session_settings, "show_controllers", text="Controllers")
         col.prop(session_settings, "show_custom_overlays", text="Custom Overlays")
+        col.prop(session_settings, "show_object_extras", text="Object Extras")
+
+        col = col.row(align=True, heading=" ")
+        col.scale_x = 2.0
+        col.popover(
+            panel="VIEW3D_PT_vr_session_view_object_type_visibility",
+            icon_value=session_settings.icon_from_show_object_viewport,
+            text="",
+        )
 
         col = layout.column(align=True)
         col.prop(session_settings, "controller_draw_style", text="Controller Style")
@@ -97,6 +95,12 @@ class VIEW3D_PT_vr_session_view(Panel):
         col.prop(session_settings, "clip_end", text="End")
 
 
+class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
+    def draw(self, context):
+        session_settings = context.window_manager.xr_session_settings
+        self.draw_ex(context, session_settings, False) # Pass session settings instead of 3D view.
+
+
 ### Landmarks.
 class VIEW3D_MT_vr_landmark_menu(Menu):
     bl_label = "Landmark Controls"
@@ -104,6 +108,7 @@ class VIEW3D_MT_vr_landmark_menu(Menu):
     def draw(self, _context):
         layout = self.layout
 
+        layout.operator("view3d.vr_camera_landmark_from_session")
         layout.operator("view3d.vr_landmark_from_camera")
         layout.operator("view3d.update_vr_landmark")
         layout.separator()
@@ -172,7 +177,7 @@ class VIEW3D_PT_vr_landmarks(Panel):
                             "base_scale", text="Scale")
 
 
-### View.
+### Actions.
 class VIEW3D_PT_vr_actionmaps(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -192,7 +197,8 @@ class VIEW3D_PT_vr_actionmaps(Panel):
 
         col = layout.column(align=True, heading="Extensions")
         col.prop(scene, "vr_actions_enable_reverb_g2", text="HP Reverb G2")
-        col.prop(scene, "vr_actions_enable_cosmos", text="HTC Vive Cosmos")
+        col.prop(scene, "vr_actions_enable_vive_cosmos", text="HTC Vive Cosmos")
+        col.prop(scene, "vr_actions_enable_vive_focus", text="HTC Vive Focus")
         col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
 
 
@@ -242,6 +248,7 @@ class VIEW3D_PT_vr_info(bpy.types.Panel):
 classes = (
     VIEW3D_PT_vr_session,
     VIEW3D_PT_vr_session_view,
+    VIEW3D_PT_vr_session_view_object_type_visibility,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,

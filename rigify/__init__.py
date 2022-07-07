@@ -1,26 +1,10 @@
-#====================== BEGIN GPL LICENSE BLOCK ======================
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-#======================= END GPL LICENSE BLOCK ========================
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
 bl_info = {
     "name": "Rigify",
-    "version": (0, 6, 5),
+    "version": (0, 6, 6),
     "author": "Nathan Vegdahl, Lucio Rossi, Ivan Cappiello, Alexander Gavrilov",
     "blender": (3, 0, 0),
     "description": "Automatic rigging from building-block components",
@@ -154,7 +138,7 @@ class RigifyFeatureSets(bpy.types.PropertyGroup):
         context.preferences.addons[__package__].preferences.update_external_rigs()
 
     enabled: bpy.props.BoolProperty(
-        name = "Enabled", 
+        name = "Enabled",
         description = "Whether this feature-set is registered or not",
         update = toggle_featureset,
         default = True
@@ -193,7 +177,7 @@ class RigifyPreferences(AddonPreferences):
 
         module_names = feature_set_list.get_installed_modules_names()
 
-        # If there is a feature set preferences entry with no corresponding 
+        # If there is a feature set preferences entry with no corresponding
         # installed module, user must've manually removed it from the filesystem,
         # so let's remove such entries.
         to_delete = [ i for i, fs in enumerate(feature_set_prefs) if fs.module_name not in module_names ]
