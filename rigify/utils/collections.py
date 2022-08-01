@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 import bpy
 
 
@@ -55,7 +53,7 @@ def ensure_collection(context, collection_name, hidden=False) -> bpy.types.Colle
     active_collection = active_layer_coll.collection
 
     collection = bpy.data.collections.get(collection_name)
-    if not collection:
+    if not collection or collection.library:
         # Create the collection
         collection = bpy.data.collections.new(collection_name)
         collection.hide_viewport = hidden

@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 bl_info = {
     "name": "Bool Tool",
     "author": "Vitor Balbio, Mikhail Rachinskiy, TynkaTopi, Meta-Androcto, Simon Appelt",
@@ -1092,7 +1090,7 @@ class PREFS_BoolTool_Props(AddonPreferences):
         "for a custom version that can optimize the visualization of Brushes",
     )
     use_wire: BoolProperty(
-        name="Display As Wirewrame",
+        name="Display As Wireframe",
         description="Display brush as wireframe instead of bounding box",
     )
     category: StringProperty(

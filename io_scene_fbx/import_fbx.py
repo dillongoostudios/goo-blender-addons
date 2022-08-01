@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 # Script copyright (C) Blender Foundation
 
 # FBX 7.1.0 -> 7.4.0 loader for Blender
@@ -780,16 +778,22 @@ def blen_read_geom_layerinfo(fbx_layer):
 
 def blen_read_geom_array_setattr(generator, blen_data, blen_attr, fbx_data, stride, item_size, descr, xform):
     """Generic fbx_layer to blen_data setter, generator is expected to yield tuples (ble_idx, fbx_idx)."""
-    max_idx = len(blen_data) - 1
+    max_blen_idx = len(blen_data) - 1
+    max_fbx_idx = len(fbx_data) - 1
     print_error = True
 
     def check_skip(blen_idx, fbx_idx):
         nonlocal print_error
         if fbx_idx < 0:  # Negative values mean 'skip'.
             return True
-        if blen_idx > max_idx:
+        if blen_idx > max_blen_idx:
             if print_error:
-                print("ERROR: too much data in this layer, compared to elements in mesh, skipping!")
+                print("ERROR: too much data in this Blender layer, compared to elements in mesh, skipping!")
+                print_error = False
+            return True
+        if fbx_idx + item_size - 1 > max_fbx_idx:
+            if print_error:
+                print("ERROR: not enough data in this FBX layer, skipping!")
                 print_error = False
             return True
         return False
@@ -2925,7 +2929,7 @@ def load(operator, context, filepath="",
                             mod.levels = preview_levels
                             mod.render_levels = render_levels
                             boundary_rule = elem_prop_first(elem_find_first(fbx_sdata, b'BoundaryRule'), default=1)
-                            if boundary_rule == 2:
+                            if boundary_rule == 1:
                                 mod.boundary_smooth = "PRESERVE_CORNERS"
                             else:
                                 mod.boundary_smooth = "ALL"

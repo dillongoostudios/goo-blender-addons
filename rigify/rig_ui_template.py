@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 import bpy
 
 from collections import OrderedDict
@@ -1161,7 +1159,8 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
         if script:
             script.clear()
         else:
-            script = bpy.data.texts.new("rig_ui.py")
+            script_name = self.generator.obj.name + "_ui.py"
+            script = bpy.data.texts.new(script_name)
             metarig.data.rigify_rig_ui = script
 
         for s in OrderedDict.fromkeys(self.ui_imports):

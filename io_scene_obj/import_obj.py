@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 # Script copyright (C) Campbell Barton
 # Contributors: Campbell Barton, Jiri Hnidek, Paolo Ciccone
 
@@ -586,7 +584,7 @@ def create_mesh(new_objects,
         len_face_vert_loc_indices = len(face_vert_loc_indices)
 
         if len_face_vert_loc_indices == 1:
-            faces.pop(f_idx)  # cant add single vert faces
+            faces.pop(f_idx)  # can't add single vert faces
 
         # Face with a single item in face_vert_nor_indices is actually a polyline!
         elif face_is_edge(face):
@@ -981,7 +979,7 @@ def load(context,
 
         # when there are faces that end with \
         # it means they are multiline-
-        # since we use xreadline we cant skip to the next line
+        # since we use xreadline we can't skip to the next line
         # so we need to know whether
         context_multi_line = b''
 

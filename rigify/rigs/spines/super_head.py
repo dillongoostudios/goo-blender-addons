@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 import bpy
 
 from itertools import count
@@ -293,6 +291,8 @@ class Rig(BaseHeadTailRig):
             mch, 'COPY_ROTATION', ctrl.head,
             influence=nfactor, space='LOCAL'
         )
+
+        self.make_constraint(mch, 'COPY_SCALE', ctrl.neck)
 
     ####################################################
     # Tweak bones

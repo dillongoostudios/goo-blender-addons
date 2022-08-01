@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 """Translate Blender meta balls to POV blobs."""
 
 import bpy
@@ -182,7 +180,7 @@ def export_meta(file, metas, tab_write, DEF_MAT_NAME):
                 try:
                     one_material = elems[1].data.materials[
                         0
-                    ]  # lame! - blender cant do enything else.
+                    ]  # lame! - blender can't do enything else.
                 except BaseException as e:
                     print(e.__doc__)
                     print('An exception occurred: {}'.format(e))
@@ -238,7 +236,7 @@ def export_meta(file, metas, tab_write, DEF_MAT_NAME):
             importance = ob.pov.importance_value
 
             try:
-                material = meta.materials[0]  # lame! - blender cant do enything else.
+                material = meta.materials[0]  # lame! - blender can't do anything else.
             except:
                 material = None
 

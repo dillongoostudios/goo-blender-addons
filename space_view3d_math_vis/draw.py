@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 import bpy
 import blf
 import gpu
@@ -31,7 +29,7 @@ COLOR_BOUNDING_BOX_ACTIVE = (1.0, 0.5, 0.0, 1.0)
 def tag_redraw_areas():
     context = bpy.context
 
-    # Py cant access notifers
+    # Py can't access notifers
     for window in context.window_manager.windows:
         for area in window.screen.areas:
             if area.type in ['VIEW_3D', 'PROPERTIES']:

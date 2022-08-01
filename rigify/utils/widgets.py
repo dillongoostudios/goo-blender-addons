@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 import bpy
 import math
 import inspect
@@ -88,6 +86,9 @@ def create_widget(rig, bone_name, bone_transform_name=None, *, widget_name=None,
         if not obj:
             # Search the scene by name
             obj = scene.objects.get(obj_name)
+            if obj and obj.library:
+                local_objs = [obj for obj in scene.objects if obj.name == obj_name and not obj.library]
+                obj = local_objs[0] if local_objs else None
 
         if obj:
             # Record the generated widget

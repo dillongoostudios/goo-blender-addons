@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 """User interface for rendering parameters"""
 
 
@@ -244,7 +242,7 @@ class RENDER_PT_POV_hues(RenderButtonsPanel, Panel):
 
 
 class RENDER_PT_POV_pattern_rules(RenderButtonsPanel, Panel):
-    """Use this class to change pov sets of texture generating algorythms."""
+    """Use this class to change pov sets of texture generating algorithms."""
 
     bl_label = "Pattern Rules"
     bl_parent_id = "RENDER_PT_POV_render_settings"
