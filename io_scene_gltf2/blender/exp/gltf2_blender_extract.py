@@ -35,20 +35,16 @@ def extract_primitives(blender_mesh, uuid_for_skined_data, blender_vertex_groups
         if blender_mesh.uv_layers.active:
             tex_coord_max = len(blender_mesh.uv_layers)
 
-    color_max = 0
-    if export_settings[gltf2_blender_export_keys.COLORS]:
-        color_max = len(blender_mesh.vertex_colors)
-
     colors_attributes = []
-    rendered_color_idx = blender_mesh.attributes.render_color_index
+    if export_settings[gltf2_blender_export_keys.COLORS]:
+        rendered_color_idx = blender_mesh.attributes.render_color_index
 
-    if color_max > 0:
-        colors_attributes.append(rendered_color_idx)
-        # Then find other ones
-        colors_attributes.extend([
-            i for i in range(len(blender_mesh.color_attributes)) if i != rendered_color_idx \
-                and blender_mesh.vertex_colors.find(blender_mesh.color_attributes[i].name) != -1
-        ])
+        if rendered_color_idx > -1:
+            colors_attributes.append(rendered_color_idx)
+            # Then find other ones
+            colors_attributes.extend([
+                i for i in range(len(blender_mesh.color_attributes)) if i != rendered_color_idx
+            ])
 
 
     armature = None
@@ -81,7 +77,8 @@ def extract_primitives(blender_mesh, uuid_for_skined_data, blender_vertex_groups
     use_morph_tangents = use_morph_normals and use_tangents and export_settings[gltf2_blender_export_keys.MORPH_TANGENT]
 
     key_blocks = []
-    if blender_mesh.shape_keys and export_settings[gltf2_blender_export_keys.MORPH]:
+    # Shape Keys can't be retrieve when using Apply Modifiers (Blender/bpy limitation)
+    if export_settings[gltf2_blender_export_keys.APPLY] is False and blender_mesh.shape_keys and export_settings[gltf2_blender_export_keys.MORPH]:
         key_blocks = [
             key_block
             for key_block in blender_mesh.shape_keys.key_blocks
