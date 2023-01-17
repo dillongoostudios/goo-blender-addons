@@ -272,7 +272,7 @@ def mu_select_by_material_name(self, find_material_name, extend_selection = Fals
         if active_object.type == 'MESH':
             # if not extending the selection, deselect all first
             #  (Without this, edges/faces were still selected
-            #   while the faces were deselcted)
+            #   while the faces were deselected)
             if not extend_selection:
                 bpy.ops.mesh.select_all(action = 'DESELECT')
 
@@ -333,7 +333,7 @@ def mu_select_by_material_name(self, find_material_name, extend_selection = Fals
             elif not internal:
                 # Some object types are not supported
                 #  mostly because don't really support selecting by material (like Font/Text objects)
-                #  ore that they don't support multiple materials/are just "weird" (i.e. Meta balls)
+                #  or that they don't support multiple materials/are just "weird" (i.e. Meta balls)
                 self.report({'WARNING'}, "The type '" +
                                             obj.type +
                                             "' isn't supported in Edit mode by Material Utilities!")

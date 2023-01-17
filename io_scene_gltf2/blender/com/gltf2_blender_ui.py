@@ -183,7 +183,7 @@ class SCENE_OT_gltf2_assign_to_variant(bpy.types.Operator):
     @classmethod
     def poll(self, context):
         return len(bpy.data.scenes[0].gltf2_KHR_materials_variants_variants) > 0 \
-            and bpy.context.object.type == "MESH"
+            and bpy.context.object and bpy.context.object.type == "MESH"
 
     def execute(self, context):
         gltf2_active_variant = bpy.data.scenes[0].gltf2_active_variant
@@ -208,15 +208,15 @@ class SCENE_OT_gltf2_assign_to_variant(bpy.types.Operator):
 
         return {'FINISHED'}
 
-# Operator to reset mesh to orignal (using default material when exists)
+# Operator to reset mesh to original (using default material when exists)
 class SCENE_OT_gltf2_reset_to_original(bpy.types.Operator):
     bl_idname = "scene.gltf2_reset_to_original"
-    bl_label = "Reset to Orignal"
+    bl_label = "Reset to Original"
     bl_options = {'REGISTER'}
 
     @classmethod
     def poll(self, context):
-        return bpy.context.object.type == "MESH" and len(context.object.data.gltf2_variant_default_materials) > 0
+        return bpy.context.object and bpy.context.object.type == "MESH" and len(context.object.data.gltf2_variant_default_materials) > 0
 
     def execute(self, context):
         obj = bpy.context.object
@@ -240,7 +240,7 @@ class SCENE_OT_gltf2_assign_as_original(bpy.types.Operator):
 
     @classmethod
     def poll(self, context):
-        return bpy.context.object.type == "MESH"
+        return bpy.context.object and bpy.context.object.type == "MESH"
 
     def execute(self, context):
         obj = bpy.context.object

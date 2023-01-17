@@ -11,7 +11,6 @@ import bpy
 import bmesh
 from bmesh import from_edit_mesh
 # noinspection PyUnresolvedReferences
-import bgl
 from bpy.types import PropertyGroup, Panel, Object, Operator, SpaceView3D
 from bpy.props import IntProperty, CollectionProperty, FloatVectorProperty, BoolProperty, StringProperty, \
                       FloatProperty, EnumProperty
@@ -233,7 +232,7 @@ class MeasureitProperties(PropertyGroup):
                             default=15, min=6, max=500)
 
     glarc_full: BoolProperty(name="arcfull",
-                              description="Create full circunference",
+                              description="Create full circumference",
                               default=False)
     glarc_extrad: BoolProperty(name="arcextrad",
                                 description="Adapt radio length to arc line",
@@ -555,7 +554,7 @@ def add_item(box, idx, segment):
                 if segment.gltype == 1:
                     row.prop(segment, 'glorto', text="Orthogonal")
                 row.prop(segment, 'glocwarning', text="Warning")
-                # ortogonal (only segments)
+                # orthogonal (only segments)
                 if segment.gltype == 1:
                     if segment.glorto != "99":
                         row = box.row(align=True)
@@ -1933,8 +1932,8 @@ def draw_main(context):
     else:
         objlist = context.view_layer.objects
 
-    # Enable GL drawing
-    bgl.glEnable(bgl.GL_BLEND)
+    # Enable drawing
+    gpu.state.blend_set('ALPHA')
     # ---------------------------------------
     # Generate all OpenGL calls for measures
     # ---------------------------------------
@@ -1964,9 +1963,9 @@ def draw_main(context):
                 draw_faces(context, myobj, region, rv3d)
 
     # -----------------------
-    # restore opengl defaults
+    # restore defaults
     # -----------------------
-    bgl.glDisable(bgl.GL_BLEND)
+    gpu.state.blend_set('NONE')
 
 
 # -------------------------------------------------------------

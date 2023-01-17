@@ -5,6 +5,11 @@
 
 import bpy
 
+from bpy.app.translations import (
+    pgettext_tip as tip_,
+    pgettext_data as data_,
+)
+
 
 def image_get(mat):
     from bpy_extras import node_shader_utils
@@ -71,7 +76,7 @@ def write_mesh(context, report_cb):
         name = os.path.basename(bpy.data.filepath)
         name = os.path.splitext(name)[0]
     else:
-        name = "untitled"
+        name = data_("untitled")
 
     # add object name
     name += f"-{bpy.path.clean_name(obj.name)}"
@@ -132,17 +137,17 @@ def write_mesh(context, report_cb):
             use_normals=export_data_layers,
         )
     elif export_format == 'OBJ':
-        addon_ensure("io_scene_obj")
         filepath = bpy.path.ensure_ext(filepath, ".obj")
-        ret = bpy.ops.export_scene.obj(
+        ret = bpy.ops.wm.obj_export(
             filepath=filepath,
-            use_mesh_modifiers=True,
-            use_selection=True,
-            global_scale=global_scale,
+            apply_modifiers=True,
+            export_selected_objects=True,
+            scaling_factor=global_scale,
             path_mode=path_mode,
-            use_normals=export_data_layers,
-            use_uvs=export_data_layers,
-            use_materials=export_data_layers,
+            export_normals=export_data_layers,
+            export_uv=export_data_layers,
+            export_materials=export_data_layers,
+            export_colors=export_data_layers,
         )
     else:
         assert 0
@@ -153,7 +158,7 @@ def write_mesh(context, report_cb):
 
     if 'FINISHED' in ret:
         if report_cb is not None:
-            report_cb({'INFO'}, f"Exported: {filepath!r}")
+            report_cb({'INFO'}, tip_("Exported: {!r}").format(filepath))
 
         return True
 

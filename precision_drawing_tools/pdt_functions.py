@@ -8,7 +8,6 @@
 
 import bpy
 import bmesh
-import bgl
 import gpu
 import numpy as np
 from mathutils import Vector, Quaternion
@@ -126,7 +125,7 @@ def set_axis(mode_pl):
         mode_pl: Taper Axis Selector variable as input
 
     Returns:
-        3 Integer Indicies.
+        3 Integer Indices.
     """
 
     order = {
@@ -584,7 +583,7 @@ def draw_3d(coords, gtype, rgba, context):
 
     try:
         if coords is not None:
-            bgl.glEnable(bgl.GL_BLEND)
+            gpu.state.blend_set('ALPHA')
             SHADER.bind()
             SHADER.uniform_float("color", rgba)
             batch.draw(SHADER)
